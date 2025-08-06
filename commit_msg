@@ -1,1 +1,1 @@
-fix: correct manifest.json configuration
+fix: correct service worker setup in src/js/script.js
