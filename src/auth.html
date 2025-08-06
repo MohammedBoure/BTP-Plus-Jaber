@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول</title>
+    <link rel="manifest" href="/manifest.json">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter and Noto Sans Arabic -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- SQL.js (kept for consistency, though may not be needed for login) -->
+    <script src="/libs/sql.js/sql-wasm.js"></script>
+    <link rel="manifest" href="/manifest.json">
+    <script>
+        // Tailwind configuration matching clients.html
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1E3A8A', // Blue from clients.html
+                        secondary: '#F3F4F6', // Light Gray
+                        success: '#10B981', // Green
+                        warning: '#F59E0B', // Orange
+                        danger: '#EF4444', // Red
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'Noto Sans Arabic', 'sans-serif'],
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans Arabic', 'sans-serif';
+            background-color: #f5f5f5;
+        }
+        .sidebar {
+            width: 16rem;
+            background-color: #ffffff;
+            border-left: 1px solid #e5e7eb;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .sidebar-collapsed {
+            width: 4rem;
+        }
+        .sidebar-collapsed .nav-text,
+        .sidebar-collapsed #logo-text {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.1s;
+        }
+        .main-content-expanded {
+            margin-right: 16rem;
+        }
+        .main-content-collapsed {
+            margin-right: 4rem;
+        }
+        [dir="ltr"] .main-content-expanded {
+            margin-left: 16rem;
+            margin-right: 0;
+        }
+        [dir="ltr"] .main-content-collapsed {
+            margin-left: 4rem;
+            margin-right: 0;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            color: #4b5563;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .nav-item:hover {
+            background-color: #f3f4f6;
+        }
+        .nav-item.active {
+            background-color: #1E3A8A;
+            color: white;
+        }
+        .nav-item.active svg {
+            color: white;
+        }
+        .main-content {
+            background-color: #ffffff; /* Light mode */
+            padding: 40px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        .dark .main-content {
+            background-color: #1f2937; /* Dark mode */
+            border-color: #374151;
+        }
+        input {
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 16px;
+            width: 250px;
+        }
+        .dark input {
+            background-color: #374151;
+            border-color: #4b5563;
+            color: #f3f4f6;
+        }
+        input:focus {
+            outline: none;
+            ring: 2px solid #1E3A8A;
+            border-color: transparent;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #1E3A8A;
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #1e40af;
+        }
+        .dark button {
+            background-color: #1E3A8A;
+        }
+        .dark button:hover {
+            background-color: #1e40af;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed right-0 top-0 h-full sidebar transition-all z-30 dark:bg-gray-800">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center space-x-3 overflow-hidden">
+                <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+                    <span class="text-white font-bold text-sm">BM</span>
+                </div>
+                <span id="logo-text" class="font-bold text-lg text-gray-900 dark:text-white transition-opacity">مدير الأعمال</span>
+            </div>
+        </div>
+        <nav class="mt-6">
+            <a href="index.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/></svg>
+                <span class="nav-text mr-3 transition-opacity">لوحة التحكم</span>
+            </a>
+            <a href="products.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zM1 15a1 1 0 011-1h6a1 1 0 110 2H2a1 1 0 01-1-1zm10-2a4 4 0 004 4h1a1 1 0 100-2h-1a2 2 0 01-2-2V9a1 1 0 10-2 0v4z"/></svg>
+                <span class="nav-text mr-3 transition-opacity">المنتجات</span>
+            </a>
+            <a href="clients.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+                <span class="nav-text mr-3 transition-opacity">الزبائن</span>
+            </a>
+            <a href="sales.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/></svg>
+                <span class="nav-text mr-3 transition-opacity">المبيعات</span>
+            </a>
+            <a href="payments.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zM14 6a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h8zM6 10a2 2 0 012-2 2 2 0 012 2 2 2 0 01-2 2 2 2 0 01-2-2z"/></svg>
+                <span class="nav-text mr-3 transition-opacity">المدفوعات</span>
+            </a>
+            <a href="settings.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"/></svg>
+                <span class="nav-text mr-3 transition-opacity">الإعدادات</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <div id="main-content" class="flex flex-col h-screen transition-all main-content-expanded">
+        <!-- Header -->
+        <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center space-x-4">
+                <button onclick="toggleSidebar()" class="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"/></svg>
+                </button>
+                <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">تسجيل الدخول</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button onclick="toggleTheme()" class="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <svg id="theme-icon-light" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zM17 11a1 1 0 100-2H9a1 1 0 100 2h8zm-8 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+                    <svg id="theme-icon-dark" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
+                </button>
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                        <span class="text-white text-sm font-medium">A</span>
+                    </div>
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">مستخدم إداري</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <main class="flex-1 main-content overflow-y-auto flex flex-col justify-center items-center text-gray-900 dark:text-gray-100">
+            <h2 class="text-xl font-semibold mb-6">أدخل كلمة المرور</h2>
+            <input type="password" id="passwordInput" placeholder="أدخل كلمة المرور" class="mb-4">
+            <button id="loginBtn" class="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>تسجيل الدخول</span>
+            </button>
+        </main>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Global state
+        let sidebarCollapsed = false;
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('main-content');
+
+            sidebarCollapsed = !sidebarCollapsed;
+
+            if (sidebarCollapsed) {
+                sidebar.classList.add('sidebar-collapsed');
+                mainContent.classList.remove('main-content-expanded');
+                mainContent.classList.add('main-content-collapsed');
+            } else {
+                sidebar.classList.remove('sidebar-collapsed');
+                mainContent.classList.remove('main-content-collapsed');
+                mainContent.classList.add('main-content-expanded');
+            }
+        }
+
+        function applyTheme(theme) {
+            const htmlEl = document.documentElement;
+            const lightIcon = document.getElementById('theme-icon-light');
+            const darkIcon = document.getElementById('theme-icon-dark');
+
+            if (theme === 'dark') {
+                htmlEl.classList.add('dark');
+                if (lightIcon) lightIcon.classList.add('hidden');
+                if (darkIcon) darkIcon.classList.remove('hidden');
+            } else {
+                htmlEl.classList.remove('dark');
+                if (lightIcon) lightIcon.classList.remove('hidden');
+                if (darkIcon) darkIcon.classList.add('hidden');
+            }
+        }
+
+        function toggleTheme() {
+            const currentTheme = localStorage.getItem('theme') || 'light';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
+        }
+
+        function handleResize() {
+            if (window.innerWidth < 768 && !sidebarCollapsed) {
+                toggleSidebar();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.documentElement.lang = 'ar';
+            document.documentElement.dir = 'rtl';
+
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            applyTheme(savedTheme);
+
+            handleResize();
+
+            // Note: No active nav link logic since login page is not part of main navigation
+        });
+
+        window.addEventListener('resize', handleResize);
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('Service Worker registered', reg))
+                    .catch(err => console.error('Service Worker registration failed', err));
+            });
+        }
+    </script>
+    <script type="module" src="js/auth.js"></script>
+</body>
+</html>

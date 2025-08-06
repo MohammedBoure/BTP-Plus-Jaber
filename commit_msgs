@@ -1,0 +1,38 @@
+fix(categories): fix category and data deletion issues
+
+Resolved an issue where deleting categories failed due to canDeleteCategory not being a function. Ensured categoriesDB is loaded properly and canDeleteCategory is defined as a function. Also fixed related data deletion logic.
+-----
+
+feat(products): add class with full CRUD functions for products table
+
+-----
+
+feat(customers): add class with full CRUD functions for customers table
+
+-----
+
+feat(sales): add class with full CRUD functions for sales table
+
+-----
+
+feat(payments): add class with full CRUD functions for payments table
+
+-----
+
+feat(employees): add class with full CRUD functions for employees table
+
+-----
+
+feat(employee-salaries): add class with full CRUD functions for employee salaries table
+
+-----
+
+feat(costs): add class with full CRUD functions for Expenses table
+
+-----
+
+feat(frontend): finalize complete frontend implementation
+
+-----
+
+chore: initial setup for Jaber Botwile app
