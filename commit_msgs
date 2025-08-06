@@ -36,3 +36,7 @@ feat(frontend): finalize complete frontend implementation
 -----
 
 chore: initial setup for Jaber Botwile app
+
+-----
+
+fix: correct manifest.json configuration
