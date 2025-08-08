@@ -175,6 +175,54 @@ class ProductsDB extends Database {
         stmt.free();
         return products;
     }
+
+        /**
+     * Retrieves products that have never been sold or not sold within an optional date range.
+     * @param {string} [startDate] - Start date in YYYY-MM-DD format (optional).
+     * @param {string} [endDate] - End date in YYYY-MM-DD format (optional).
+     * @returns {Promise<Array<Object>>} Array of unsold products.
+     * @throws {Error} If date format is invalid or database error occurs.
+     */
+    async getUnsoldProducts(startDate = '', endDate = '') {
+        console.log('ProductsDB.js: getUnsoldProducts called with:', { startDate, endDate });
+        if ((startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) ||
+            (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate))) {
+            throw new Error('تاريخ البداية أو النهاية يجب أن يكون بصيغة YYYY-MM-DD.');
+        }
+
+        const db = await this.getDB();
+        let query = `
+            SELECT p.product_id, p.name, p.stock_quantity, p.unit, p.min_stock_level, MAX(s.date) as lastSold
+            FROM products p
+            LEFT JOIN sale_items si ON p.product_id = si.product_id
+            LEFT JOIN sales s ON si.sale_id = s.sale_id
+        `;
+        const params = [];
+        const conditions = [];
+
+        if (startDate) {
+            conditions.push('MAX(s.date) IS NULL OR MAX(s.date) < ?');
+            params.push(startDate);
+        }
+        if (endDate) {
+            conditions.push('MAX(s.date) <= ?');
+            params.push(endDate);
+        }
+
+        if (conditions.length > 0) {
+            query += ` WHERE ${conditions.join(' AND ')}`;
+        }
+
+        query += ` GROUP BY p.product_id ORDER BY p.name;`;
+
+        const stmt = db.prepare(query, params);
+        const products = [];
+        while (stmt.step()) {
+            products.push(stmt.getAsObject());
+        }
+        stmt.free();
+        return products;
+    }
 }
 
 export default ProductsDB;

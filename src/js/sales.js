@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const salesTableBody = document.getElementById('salesTableBody');
     const saleDetailsModal = document.getElementById('saleDetailsModal');
     const saleItemsTableBody = document.getElementById('saleItemsTableBody');
+    const saleSummary = document.getElementById('saleSummary');
     const closeModalButton = document.getElementById('closeModal');
     const prevPageButton = document.getElementById('prevPage');
     const nextPageButton = document.getElementById('nextPage');
@@ -77,7 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // Set default date range to last 30 days
-    const today = new Date('2025-08-06');
+    const today = new Date('2025-08-08');
     const endDate = today.toISOString().split('T')[0];
     const startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     startDateInput.value = startDate;
@@ -87,14 +88,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const startDatePicker = flatpickr(startDateInput, {
         dateFormat: "Y-m-d",
         locale: customLocale,
-        maxDate: "2025-08-06",
+        maxDate: "2025-08-08",
         defaultDate: startDate,
         theme: savedTheme
     });
     const endDatePicker = flatpickr(endDateInput, {
         dateFormat: "Y-m-d",
         locale: customLocale,
-        maxDate: "2025-08-06",
+        maxDate: "2025-08-08",
         defaultDate: endDate,
         theme: savedTheme
     });
@@ -183,7 +184,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         } catch (error) {
             console.error('Error loading sales:', error);
-            salesTableBody.innerHTML = `<tr><td colspan="${isAdmin || sensitiveInfoVisible ? 10 : 8}" class="text-center p-4 text-danger">فشل تحميل المبيعات: ${error.message}</td></tr>`;
+            salesTableBody.innerHTML = `<tr><td colspan="${isAdmin || sensitiveInfoVisible ? 11 : 8}" class="text-center p-4 text-danger">فشل تحميل المبيعات: ${error.message}</td></tr>`;
         }
     }
     
@@ -197,7 +198,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         salesTableBody.innerHTML = '';
         if (paginatedSales.length === 0) {
-            salesTableBody.innerHTML = `<tr><td colspan="${isAdmin || sensitiveInfoVisible ? 10 : 8}" class="text-center p-4 text-gray-500 dark:text-gray-400">لا توجد مبيعات تطابق معايير البحث.</td></tr>`;
+            salesTableBody.innerHTML = `<tr><td colspan="${isAdmin || sensitiveInfoVisible ? 11 : 8}" class="text-center p-4 text-gray-500 dark:text-gray-400">لا توجد مبيعات تطابق معايير البحث.</td></tr>`;
         } else {
             paginatedSales.forEach(sale => {
                 const remainingClass = sale.remaining > 0 ? 'text-danger' : 'text-gray-500 dark:text-gray-400';
@@ -212,7 +213,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <td class="p-3 text-left" dir="ltr">${sale.date}</td>
                         <td class="p-3 font-medium text-gray-900 dark:text-white text-right">${sale.client_name || 'بيع نقدي'}</td>
                         <td class="p-3 text-left">${sale.total.toFixed(2)}</td>
-                        <td class="p-3 text-left ${sensitiveClass}">${(sale.total_discount || 0).toFixed(2)}</td>
+                        <td class="p-3 text-left ${sensitiveClass}">${(sale.sale_discount_amount || 0).toFixed(2)}</td>
+                        <td class="p-3 text-left">${(sale.delivery_price || 0).toFixed(2)}</td>
                         <td class="p-3 font-semibold ${profitClass} text-left ${sensitiveClass}">${(sale.profit || 0).toFixed(2)}</td>
                         <td class="p-3 text-success text-left">${sale.paid.toFixed(2)}</td>
                         <td class="p-3 font-semibold ${remainingClass} text-left">${sale.remaining.toFixed(2)}</td>
@@ -242,6 +244,54 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function showSaleDetails(saleId) {
         try {
+            const sale = currentSales.find(s => s.sale_id === saleId);
+            if (!sale) throw new Error('Sale not found');
+
+            // Populate sale summary
+            const sensitiveClass = (isAdmin || sensitiveInfoVisible) ? 'sensitive-column visible' : 'sensitive-column';
+            saleSummary.innerHTML = `
+                <div class="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                    <label class="block text-sm text-gray-600 dark:text-gray-400">رقم البيع</label>
+                    <p class="text-lg font-bold text-gray-800 dark:text-white">${sale.sale_id}</p>
+                </div>
+                <div class="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                    <label class="block text-sm text-gray-600 dark:text-gray-400">التاريخ</label>
+                    <p class="text-lg font-bold text-gray-800 dark:text-white">${sale.date}</p>
+                </div>
+                <div class="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                    <label class="block text-sm text-gray-600 dark:text-gray-400">العميل</label>
+                    <p class="text-lg font-bold text-gray-800 dark:text-white">${sale.client_name || 'بيع نقدي'}</p>
+                </div>
+                <div class="text-center p-3 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
+                    <label class="block text-sm text-blue-600 dark:text-blue-300">الإجمالي النهائي</label>
+                    <p class="text-lg font-bold text-primary dark:text-blue-300">${sale.total.toFixed(2)}</p>
+                </div>
+                <div class="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg ${sensitiveClass}">
+                    <label class="block text-sm text-gray-600 dark:text-gray-400">المجموع الفرعي</label>
+                    <p class="text-lg font-bold text-gray-800 dark:text-white">${sale.subtotal.toFixed(2)}</p>
+                </div>
+                <div class="text-center p-3 bg-yellow-100 dark:bg-yellow-900/50 rounded-lg ${sensitiveClass}">
+                    <label class="block text-sm text-yellow-600 dark:text-yellow-400">خصم المبيعة</label>
+                    <p class="text-lg font-bold text-warning dark:text-yellow-400">${(sale.sale_discount_amount || 0).toFixed(2)}</p>
+                </div>
+                <div class="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                    <label class="block text-sm text-gray-600 dark:text-gray-400">تكلفة التوصيل</label>
+                    <p class="text-lg font-bold text-gray-800 dark:text-white">${(sale.delivery_price || 0).toFixed(2)}</p>
+                </div>
+                <div class="text-center p-3 bg-green-100 dark:bg-green-900/50 rounded-lg">
+                    <label class="block text-sm text-green-600 dark:text-green-400">المدفوع</label>
+                    <p class="text-lg font-bold text-success dark:text-green-400">${sale.paid.toFixed(2)}</p>
+                </div>
+                <div class="text-center p-3 bg-red-100 dark:bg-red-900/50 rounded-lg">
+                    <label class="block text-sm text-red-600 dark:text-red-400">المتبقي</label>
+                    <p class="text-lg font-bold text-danger dark:text-red-400">${sale.remaining.toFixed(2)}</p>
+                </div>
+                <div class="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg ${sensitiveClass}">
+                    <label class="block text-sm text-gray-600 dark:text-gray-400">الفائدة</label>
+                    <p class="text-lg font-bold ${(sale.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-danger')}">${(sale.profit || 0).toFixed(2)}</p>
+                </div>
+            `;
+
             const saleItems = await saleItemsDB.getSaleItemsBySale(saleId);
             saleItemsTableBody.innerHTML = '';
             saleItems.forEach(item => {
@@ -256,7 +306,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <td class="p-3 text-left">${item.total_price.toFixed(2)}</td>
                         <td class="p-3 font-semibold ${itemProfitClass} text-left ${sensitiveClass}">${(item.item_profit || 0).toFixed(2)}</td>
                         <td class="p-3 text-left">
-                             <button class="delete-item p-2 rounded-md text-danger dark:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" title="حذف العنصر" data-item-id="${item.sale_item_id}">
+                            <button class="delete-item p-2 rounded-md text-danger dark:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" title="حذف العنصر" data-item-id="${item.sale_item_id}">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
                         </td>

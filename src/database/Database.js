@@ -84,11 +84,78 @@ class Database {
     }
 
     createTables() {
-        this.db.run(`CREATE TABLE IF NOT EXISTS products (product_id INTEGER PRIMARY KEY, name TEXT NOT NULL, unit TEXT NOT NULL, price_per_unit REAL NOT NULL, purchase_price REAL NOT NULL, stock_quantity REAL NOT NULL, min_stock_level REAL NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);`);
-        this.db.run(`CREATE TABLE IF NOT EXISTS clients (client_id INTEGER PRIMARY KEY, name TEXT NOT NULL, phone TEXT, address TEXT, is_regular BOOLEAN DEFAULT 0, notes TEXT);`);
-        this.db.run(`CREATE TABLE IF NOT EXISTS sales (sale_id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER, date DATE NOT NULL, subtotal REAL NOT NULL, sale_discount_amount REAL NOT NULL DEFAULT 0, total REAL NOT NULL, paid REAL NOT NULL, remaining REAL NOT NULL, is_credit BOOLEAN DEFAULT 0, FOREIGN KEY (client_id) REFERENCES clients(client_id));`);
-        this.db.run(`CREATE TABLE IF NOT EXISTS sale_items (sale_item_id INTEGER PRIMARY KEY AUTOINCREMENT, sale_id INTEGER NOT NULL, product_id INTEGER NOT NULL, quantity REAL NOT NULL, unit_price REAL NOT NULL, discount_amount REAL NOT NULL DEFAULT 0, total_price REAL NOT NULL, FOREIGN KEY (sale_id) REFERENCES sales(sale_id), FOREIGN KEY (product_id) REFERENCES products(product_id));`);
-        this.db.run(`CREATE TABLE IF NOT EXISTS payments (payment_id INTEGER PRIMARY KEY, client_id INTEGER NOT NULL, date DATE NOT NULL, amount REAL NOT NULL, notes TEXT, FOREIGN KEY (client_id) REFERENCES clients(client_id));`);
+        this.db.run(`
+            CREATE TABLE IF NOT EXISTS products (
+                product_id INTEGER PRIMARY KEY, 
+                name TEXT NOT NULL, 
+                unit TEXT NOT NULL, 
+                price_per_unit REAL NOT NULL, 
+                purchase_price REAL NOT NULL, 
+                stock_quantity REAL NOT NULL, 
+                min_stock_level REAL NOT NULL, 
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        this.db.run(`
+            CREATE TABLE IF NOT EXISTS clients (
+                client_id INTEGER PRIMARY KEY, 
+                name TEXT NOT NULL, 
+                phone TEXT, 
+                address TEXT, 
+                is_regular BOOLEAN DEFAULT 0, 
+                notes TEXT
+            );
+        `);
+        this.db.run(`
+            CREATE TABLE IF NOT EXISTS sales (
+                sale_id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                client_id INTEGER, 
+                date DATE NOT NULL, 
+                subtotal REAL NOT NULL, 
+                sale_discount_amount REAL NOT NULL DEFAULT 0, 
+                delivery_price REAL NOT NULL DEFAULT 0, -- حقل جديد لتكلفة التوصيل
+                total REAL NOT NULL, 
+                paid REAL NOT NULL, 
+                remaining REAL NOT NULL, 
+                is_credit BOOLEAN DEFAULT 0, 
+                FOREIGN KEY (client_id) REFERENCES clients(client_id)
+            );
+        `);
+        this.db.run(`
+            CREATE TABLE IF NOT EXISTS sale_items (
+                sale_item_id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                sale_id INTEGER NOT NULL, 
+                product_id INTEGER NOT NULL, 
+                quantity REAL NOT NULL, 
+                unit_price REAL NOT NULL, 
+                discount_amount REAL NOT NULL DEFAULT 0, 
+                total_price REAL NOT NULL, 
+                FOREIGN KEY (sale_id) REFERENCES sales(sale_id), 
+                FOREIGN KEY (product_id) REFERENCES products(product_id)
+            );
+        `);
+        this.db.run(`
+            CREATE TABLE IF NOT EXISTS payments (
+                payment_id INTEGER PRIMARY KEY, 
+                client_id INTEGER NOT NULL, 
+                date DATE NOT NULL, 
+                amount REAL NOT NULL, 
+                notes TEXT, 
+                FOREIGN KEY (client_id) REFERENCES clients(client_id)
+            );
+        `);
+        // جدول جديد لطلبات الشراء (اختياري)
+        this.db.run(`
+            CREATE TABLE IF NOT EXISTS purchase_orders (
+                purchase_order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                supplier_id INTEGER, -- يمكن إضافة جدول suppliers إذا لزم
+                date DATE NOT NULL,
+                subtotal REAL NOT NULL,
+                delivery_price REAL NOT NULL DEFAULT 0,
+                total REAL NOT NULL,
+                notes TEXT
+            );
+        `);
     }
 
     // =================================================================
@@ -99,7 +166,7 @@ class Database {
         try {
             this.db.exec("BEGIN TRANSACTION;");
 
-            // 1. Products
+            // 1. Products (بدون تغيير)
             const products = [
                 { id: 1, name: 'أسمنت بورتلاندي', unit: 'كيس (50 كجم)', price: 15, purchase: 12, stock: 500, min: 50 },
                 { id: 2, name: 'رمل بناء ناعم', unit: 'متر مكعب', price: 25, purchase: 18, stock: 100, min: 10 },
@@ -116,14 +183,14 @@ class Database {
             products.forEach(p => productStmt.run([p.id, p.name, p.unit, p.price, p.purchase, p.stock, p.min]));
             productStmt.free();
 
-            // 2. Clients
+            // 2. Clients (بدون تغيير)
             const clients = Array.from({ length: 30 }, (_, i) => ({ id: Date.now() + i, name: `العميل رقم ${i + 1}`, phone: `05012345${i.toString().padStart(2, '0')}`, address: `العنوان ${i+1}` }));
             const clientStmt = this.db.prepare("INSERT INTO clients (client_id, name, phone, address) VALUES (?, ?, ?, ?)");
             clients.forEach(c => clientStmt.run([c.id, c.name, c.phone, c.address]));
             clientStmt.free();
 
-            // 3. Sales, Sale Items, and Payments (High Density)
-            const saleStmt = this.db.prepare("INSERT INTO sales (client_id, date, subtotal, total, paid, remaining, is_credit) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            // 3. Sales, Sale Items, and Payments (مع إضافة تكلفة التوصيل)
+            const saleStmt = this.db.prepare("INSERT INTO sales (client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
             const itemStmt = this.db.prepare("INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?)");
             const paymentStmt = this.db.prepare("INSERT INTO payments (payment_id, client_id, date, amount, notes) VALUES (?, ?, ?, ?, ?)");
             
@@ -148,17 +215,19 @@ class Database {
                     saleItems.push({ product_id: product.id, quantity, unit_price: product.price, total_price: itemTotal });
                 }
                 
-                const total = subtotal;
+                const saleDiscount = Math.random() < 0.3 ? subtotal * (Math.random() * 0.1) : 0; // خصم عشوائي بنسبة 30%
+                const deliveryPrice = Math.random() < 0.6 ? (Math.random() * 50 + 10).toFixed(2) : 0; // تكلفة توصيل عشوائية بنسبة 60%
+                const total = (subtotal - saleDiscount + parseFloat(deliveryPrice)).toFixed(2);
                 const isCredit = Math.random() < 0.4; // 40% chance of credit sale
                 let paid = total;
                 let remaining = 0;
 
                 if (isCredit) {
-                    paid = total * (Math.random() * 0.5);
-                    remaining = total - paid;
+                    paid = (total * (Math.random() * 0.5)).toFixed(2);
+                    remaining = (total - paid).toFixed(2);
                 }
 
-                saleStmt.run([client.id, saleDate.toISOString().slice(0, 10), subtotal, total, paid, remaining.toFixed(2), isCredit ? 1 : 0]);
+                saleStmt.run([client.id, saleDate.toISOString().slice(0, 10), subtotal.toFixed(2), saleDiscount.toFixed(2), deliveryPrice, total, paid, remaining, isCredit ? 1 : 0]);
                 const saleId = this.db.exec("SELECT last_insert_rowid()")[0].values[0][0];
 
                 saleItems.forEach(item => { itemStmt.run([saleId, item.product_id, item.quantity, item.unit_price, item.total_price]); });
@@ -166,13 +235,26 @@ class Database {
                 if (isCredit && remaining > 1) {
                     const paymentDate = new Date(saleDate);
                     paymentDate.setDate(paymentDate.getDate() + Math.floor(Math.random() * 30) + 15);
-                    const paymentAmount = remaining * (Math.random() * 0.4 + 0.1);
-                    paymentStmt.run([Date.now() + i, client.id, paymentDate.toISOString().slice(0, 10), paymentAmount.toFixed(2), `دفعة لفاتورة #${saleId}`]);
+                    const paymentAmount = (remaining * (Math.random() * 0.4 + 0.1)).toFixed(2);
+                    paymentStmt.run([Date.now() + i, client.id, paymentDate.toISOString().slice(0, 10), paymentAmount, `دفعة لفاتورة #${saleId}`]);
                 }
             }
             saleStmt.free();
             itemStmt.free();
             paymentStmt.free();
+
+            // 4. Purchase Orders (اختياري)
+            const purchaseStmt = this.db.prepare("INSERT INTO purchase_orders (supplier_id, date, subtotal, delivery_price, total, notes) VALUES (?, ?, ?, ?, ?, ?)");
+            for (let i = 0; i < 50; i++) {
+                const supplierId = Math.floor(Math.random() * 1000) + 1; // يمكن استبداله بجدول موردين
+                const purchaseDate = new Date();
+                purchaseDate.setDate(purchaseDate.getDate() - Math.floor(Math.random() * 730));
+                const purchaseSubtotal = (Math.random() * 5000 + 1000).toFixed(2);
+                const purchaseDeliveryPrice = (Math.random() * 100 + 20).toFixed(2);
+                const purchaseTotal = (parseFloat(purchaseSubtotal) + parseFloat(purchaseDeliveryPrice)).toFixed(2);
+                purchaseStmt.run([supplierId, purchaseDate.toISOString().slice(0, 10), purchaseSubtotal, purchaseDeliveryPrice, purchaseTotal, `طلب شراء #${i + 1}`]);
+            }
+            purchaseStmt.free();
 
             this.db.exec("COMMIT;");
             console.log("✅ تم إدخال البيانات الأولية بنجاح.");

@@ -308,6 +308,45 @@ class PaymentsDB extends Database {
         const result = db.exec(query, params);
         return result[0].values[0][0] || 0;
     }
+
+    /**
+     * Calculates the total amount of payments made toward credit sales within an optional date range.
+     * @param {string} [startDate] - Start date in YYYY-MM-DD format (optional).
+     * @param {string} [endDate] - End date in YYYY-MM-DD format (optional).
+     * @returns {Promise<number>} Total amount of payments.
+     * @throws {Error} If date format is invalid or database error occurs.
+     */
+    async getTotalPaidCredit(startDate = '', endDate = '') {
+        console.log('PaymentsDB.js: getTotalPaidCredit called with:', { startDate, endDate });
+        if ((startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) ||
+            (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate))) {
+            console.error('PaymentsDB.js: Invalid date format:', { startDate, endDate });
+            throw new Error('Invalid date format. Use YYYY-MM-DD.');
+        }
+        try {
+            const db = await this.getDB();
+            let query = `SELECT SUM(amount) AS total_amount FROM payments`;
+            const params = [];
+            if (startDate && endDate) {
+                query += ` WHERE date BETWEEN ? AND ?`;
+                params.push(startDate, endDate);
+            } else if (startDate) {
+                query += ` WHERE date >= ?`;
+                params.push(startDate);
+            } else if (endDate) {
+                query += ` WHERE date <= ?`;
+                params.push(endDate);
+            }
+            console.debug('PaymentsDB.js: Executing query:', query, 'with params:', params);
+            const result = db.exec(query, params);
+            const total = result[0].values[0][0] || 0;
+            console.log('PaymentsDB.js: getTotalPaidCredit result:', total);
+            return total;
+        } catch (error) {
+            console.error('PaymentsDB.js: Error in getTotalPaidCredit:', error.message, error.stack);
+            throw new Error(`Failed to calculate total paid credit: ${error.message}`);
+        }
+    }
 }
 
 export default PaymentsDB;

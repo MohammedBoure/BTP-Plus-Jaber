@@ -44,3 +44,7 @@ fix: correct manifest.json configuration
 -----
 
 fix: correct service worker setup in src/js/script.js
+
+-----
+
+feat: add online backup and thermal printer support via API messages

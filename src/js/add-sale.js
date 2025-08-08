@@ -1,5 +1,3 @@
-// --- START OF FILE add-sale.js ---
-
 import ClientsDB from '../database/ClientsDB.js';
 import SalesDB from '../database/SalesDB.js';
 import SaleItemsDB from '../database/SaleItemsDB.js';
@@ -18,6 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const saleDate = document.getElementById('saleDate');
     const isCredit = document.getElementById('isCredit');
     const saleDiscount = document.getElementById('saleDiscount');
+    const deliveryPrice = document.getElementById('deliveryPrice');
     const productSearch = document.getElementById('productSearch');
     const productSelect = document.getElementById('productSelect');
     const quantityInput = document.getElementById('quantity');
@@ -103,8 +102,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const subtotal = saleItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
         const totalItemDiscount = saleItems.reduce((sum, item) => sum + item.discountAmount, 0);
         const saleDiscountValue = parseFloat(saleDiscount.value) || 0;
+        const deliveryPriceValue = parseFloat(deliveryPrice.value) || 0;
         const totalDiscount = totalItemDiscount + saleDiscountValue;
-        let total = subtotal - totalDiscount;
+        let total = subtotal - totalDiscount + deliveryPriceValue;
         if (total < 0) total = 0; // منع الإجمالي من أن يكون سالبًا
 
         // إضافة: تحديث المبلغ المدفوع بناءً على نوع البيع
@@ -126,6 +126,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             subtotal,
             totalItemDiscount,
             saleDiscountValue,
+            deliveryPriceValue,
             totalDiscount,
             total,
             paid,
@@ -157,12 +158,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
         row.querySelector('.remove-item').addEventListener('click', () => {
             console.log('add-sale.js: إزالة عنصر:', item.productId);
-            saleItems = saleItems.filter(i => i.productId !== item.productId);
+            saleItems = saleItems.filter(i => i.productId === item.productId);
             row.remove();
             updateSummary();
         });
         saleItemsTableBody.appendChild(row);
-        lucide.createIcons(); // <<--- تحديث: تصيير الأيقونة الجديدة
+        lucide.createIcons(); // تحديث: تصيير الأيقونة الجديدة
     }
 
     // البحث عن العملاء
@@ -263,6 +264,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('add-sale.js: تغيير الخصم على البيع:', saleDiscount.value);
         updateSummary();
     });
+    deliveryPrice.addEventListener('input', () => {
+        console.log('add-sale.js: تغيير تكلفة التوصيل:', deliveryPrice.value);
+        updateSummary();
+    });
     paidAmountInput.addEventListener('input', () => {
         console.log('add-sale.js: تغيير المبلغ المدفوع:', paidAmountInput.value);
         updateSummary();
@@ -282,9 +287,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const date = saleDate.value;
         const isCreditValue = parseInt(isCredit.value);
         const saleDiscountValue = parseFloat(saleDiscount.value) || 0;
+        const deliveryPriceValue = parseFloat(deliveryPrice.value) || 0;
         const subtotal = saleItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
         const totalDiscount = saleItems.reduce((sum, item) => sum + item.discountAmount, 0) + saleDiscountValue;
-        const total = subtotal - totalDiscount;
+        const total = subtotal - totalDiscount + deliveryPriceValue;
         const paid = parseFloat(paidAmountInput.value) || 0;
         const remaining = total - paid;
 
@@ -293,6 +299,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             date,
             isCreditValue,
             saleDiscountValue,
+            deliveryPriceValue,
             subtotal,
             totalDiscount,
             total,
@@ -308,8 +315,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        if (total < 0 || paid < 0 || saleDiscountValue < 0) {
-            console.error('add-sale.js: قيم مالية غير صالحة:', { total, paid, saleDiscountValue });
+        if (total < 0 || paid < 0 || saleDiscountValue < 0 || deliveryPriceValue < 0) {
+            console.error('add-sale.js: قيم مالية غير صالحة:', { total, paid, saleDiscountValue, deliveryPriceValue });
             alert('القيم المالية يجب ألا تكون سالبة.');
             return;
         }
@@ -353,6 +360,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     date,
                     subtotal,
                     sale_discount_amount: saleDiscountValue,
+                    delivery_price: deliveryPriceValue,
                     total,
                     paid,
                     remaining,
@@ -361,11 +369,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.log('add-sale.js: إضافة المبيعة مباشرة:', sale);
                 
                 // تنفيذ استعلام إضافة المبيعة
-                const saleParams = [clientId || null, date, subtotal, saleDiscountValue, total, paid, remaining, isCreditValue ? 1 : 0];
+                const saleParams = [clientId || null, date, subtotal, saleDiscountValue, deliveryPriceValue, total, paid, remaining, isCreditValue ? 1 : 0];
                 console.log('add-sale.js: تنفيذ استعلام إضافة المبيعة مع المعلمات:', saleParams);
                 const saleStmt = dbInstance.prepare(
-                    `INSERT INTO sales (client_id, date, subtotal, sale_discount_amount, total, paid, remaining, is_credit) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+                    `INSERT INTO sales (client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
                     saleParams
                 );
                 saleStmt.run();

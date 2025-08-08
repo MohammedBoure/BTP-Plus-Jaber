@@ -26,12 +26,12 @@ window.fetchStatsManually = async function() {
 }
 
 // Date Range Button Handlers
-document.getElementById('todayBtn').addEventListener('click', () => setDateRange('today'));
-document.getElementById('lastWeekBtn').addEventListener('click', () => setDateRange('lastWeek'));
-document.getElementById('lastMonthBtn').addEventListener('click', () => setDateRange('lastMonth'));
-document.getElementById('lastYearBtn').addEventListener('click', () => setDateRange('lastYear'));
-document.getElementById('allDataBtn').addEventListener('click', () => setDateRange('allData'));
-document.getElementById('fetchStats').addEventListener('click', fetchStatsManually);
+document.getElementById('todayBtn')?.addEventListener('click', () => setDateRange('today'));
+document.getElementById('lastWeekBtn')?.addEventListener('click', () => setDateRange('lastWeek'));
+document.getElementById('lastMonthBtn')?.addEventListener('click', () => setDateRange('lastMonth'));
+document.getElementById('lastYearBtn')?.addEventListener('click', () => setDateRange('lastYear'));
+document.getElementById('allDataBtn')?.addEventListener('click', () => setDateRange('allData'));
+document.getElementById('fetchStats')?.addEventListener('click', fetchStatsManually);
 
 // Date format conversion (YYYY-MM-DD to MM/DD/YYYY and vice versa)
 function toMMDDYYYY(dateStr) {
@@ -119,12 +119,14 @@ async function getComprehensiveStats(startDate, endDate) {
         }
 
         // Sales Stats
-        const totalRevenue = await saleItemsDB.getTotalRevenue(startDate, endDate);
+        let totalRevenue = await saleItemsDB.getTotalRevenue(startDate, endDate);
+        const totalDeliveryRevenue = await salesDB.getTotalDeliveryPrice(startDate, endDate);
+        totalRevenue += totalDeliveryRevenue; // Add delivery_price to totalRevenue
         const topSoldItems = await saleItemsDB.getTopSoldItemsWithDateRange(startDate, endDate, 5);
         const totalItemsSold = await saleItemsDB.getTotalItemsSold(startDate, endDate);
-        const revenueTrend = await getRevenueTrend(saleItemsDB, startDate, endDate);
+        const revenueTrend = await getRevenueTrend(saleItemsDB, salesDB, startDate, endDate);
 
-        // Calculate Total Purchase Cost of sold items accurately
+        // Calculate Total Purchase Cost of sold items
         const db = await saleItemsDB.getDB();
         let query = `SELECT si.product_id, SUM(si.quantity) as total_quantity
                      FROM sale_items si
@@ -157,79 +159,88 @@ async function getComprehensiveStats(startDate, endDate) {
         const lowStockProductsCount = await productsDB.getLowStockProductsCount();
         const totalCapitalPurchase = await productsDB.getTotalCapitalPurchasePrice();
         const totalCapitalSell = await productsDB.getTotalCapitalSellPrice();
-        const unsoldProducts = await productsDB.getUnsoldProductsSince(startDate || '1970-01-01');
+        const unsoldProducts = await productsDB.getUnsoldProductsSince(startDate || '1900-01-01');
 
         // Clients Stats
         const totalClientsCount = await clientsDB.getTotalClientsCount();
         const topSpendingClients = await clientsDB.getTopSpendingClients(5, startDate, endDate);
-        const clientsWithCredit = await clientsDB.getClientsWithCredit();
+        const clientsWithCredit = await clientsDB.getClientsWithCredit(startDate, endDate);
 
-        // Payments Stats
-        const totalPayments = await paymentsDB.getTotalPaymentsAmount(startDate, endDate);
-
-        // Simplified Profit Calculation
-        const grossProfit = totalRevenue - totalPurchaseCost;
+        // Profit Stats
+        const paidCredit = await paymentsDB.getTotalPaymentsAmount(startDate, endDate);
+        const grossProfit = totalRevenue - totalPurchaseCost; // delivery_price is pure profit, already in totalRevenue
 
         return {
-            sales: { totalRevenue, topSoldItems: topSoldItems.map(item => ({...item, total_revenue: item.total_revenue})), totalItemsSold },
+            sales: { totalRevenue, totalItemsSold, topSoldItems, paidCredit },
             products: { totalProductsCount, lowStockProductsCount, totalCapitalPurchase, totalCapitalSell, unsoldProducts },
             clients: { totalClientsCount, topSpendingClients, clientsWithCredit },
-            payments: { totalPayments },
             profit: { grossProfit },
             revenueTrend
         };
     } catch (error) {
-        console.error('Error in getComprehensiveStats:', error.message, error.stack);
-        throw new Error(`فشل في جلب الإحصائيات: ${error.message}`);
+        console.error('Error in getComprehensiveStats:', error);
+        throw error;
     }
 }
 
-async function getRevenueTrend(saleItemsDB, startDate, endDate) {
-    const db = await saleItemsDB.getDB();
-    let query = `SELECT DATE(s.date) as date, SUM(si.total_price) as daily_revenue
-                 FROM sales s
-                 JOIN sale_items si ON s.sale_id = si.sale_id`;
-    const params = [];
-    if (startDate && endDate) {
-        query += ` WHERE s.date BETWEEN ? AND ?`;
-        params.push(startDate, endDate);
+async function getRevenueTrend(saleItemsDB, salesDB, startDate, endDate) {
+    try {
+        const db = await saleItemsDB.getDB();
+        let query = `SELECT s.date, SUM(si.total_price) as daily_revenue, SUM(s.delivery_price) as daily_delivery
+                     FROM sales s
+                     LEFT JOIN sale_items si ON s.sale_id = si.sale_id`;
+        const params = [];
+        if (startDate && endDate) {
+            query += ` WHERE s.date BETWEEN ? AND ?`;
+            params.push(startDate, endDate);
+        } else if (startDate) {
+            query += ` WHERE s.date >= ?`;
+            params.push(startDate);
+        } else if (endDate) {
+            query += ` WHERE s.date <= ?`;
+            params.push(endDate);
+        }
+        query += ` GROUP BY s.date ORDER BY s.date;`;
+        const stmt = db.prepare(query, params);
+        const trend = [];
+        while (stmt.step()) {
+            const row = stmt.getAsObject();
+            trend.push({
+                date: row.date,
+                daily_revenue: (row.daily_revenue || 0) + (row.daily_delivery || 0)
+            });
+        }
+        stmt.free();
+        return trend;
+    } catch (error) {
+        console.error('Error in getRevenueTrend:', error);
+        throw error;
     }
-    query += ` GROUP BY DATE(s.date) ORDER BY s.date;`;
-    const stmt = db.prepare(query, params);
-    const trend = [];
-    while (stmt.step()) {
-        const row = stmt.getAsObject();
-        trend.push({ date: toMMDDYYYY(row.date), daily_revenue: row.daily_revenue });
+}
+
+function setTextContent(elementId, value) {
+    const element = document.getElementById(elementId);
+    if (element) element.textContent = value;
+}
+
+function setClassName(elementId, condition, classIfTrue, classIfFalse) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.className = condition ? classIfTrue : classIfFalse;
     }
-    stmt.free();
-    return trend;
 }
 
 function displayStats(stats) {
-    const setTextContent = (id, value) => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.textContent = value;
-        }
-    };
-
-    const setClassName = (id, condition, trueClass, falseClass = 'font-medium') => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.className = condition ? `font-medium ${trueClass}` : `font-medium ${falseClass}`;
-        }
-    };
-
-    // Sales & Payments Stats
+    // Sales Stats
     setTextContent('totalRevenue', stats.sales.totalRevenue.toFixed(2));
-    setTextContent('totalPayments', stats.payments.totalPayments.toFixed(2));
-    setTextContent('totalItemsSold', stats.sales.totalItemsSold.toFixed(2));
+    setTextContent('paidCredit', stats.sales.paidCredit.toFixed(2));
+    setTextContent('totalItemsSold', stats.sales.totalItemsSold);
     const topSoldItemsList = document.getElementById('topSoldItems');
     if (topSoldItemsList) {
         topSoldItemsList.innerHTML = '';
         stats.sales.topSoldItems.forEach(item => {
             const li = document.createElement('li');
-            li.textContent = `${item.product_name}: ${item.total_revenue.toFixed(2)} دينار`;
+            li.textContent = `${item.product_name}: ${item.total_quantity} وحدة`;
             topSoldItemsList.appendChild(li);
         });
     }
@@ -237,9 +248,6 @@ function displayStats(stats) {
     // Products Stats
     setTextContent('totalProductsCount', stats.products.totalProductsCount);
     setTextContent('lowStockProductsCount', stats.products.lowStockProductsCount);
-    if (document.getElementById('lowStockProductsCount')) {
-        document.getElementById('lowStockProductsCount').className = stats.products.lowStockProductsCount > 0 ? 'font-medium text-danger' : 'font-medium';
-    }
     setTextContent('totalCapitalPurchase', stats.products.totalCapitalPurchase.toFixed(2));
     setTextContent('totalCapitalSell', stats.products.totalCapitalSell.toFixed(2));
     const unsoldProductsList = document.getElementById('unsoldProducts');
@@ -269,7 +277,7 @@ function displayStats(stats) {
         stats.clients.clientsWithCredit.forEach(client => {
             const li = document.createElement('li');
             li.textContent = `${client.name}: ${client.total_remaining.toFixed(2)} دينار`;
-            topSpendingClientsList.appendChild(li);
+            clientsWithCreditList.appendChild(li);
         });
     }
 
@@ -304,84 +312,90 @@ function drawCharts(stats) {
         }
     };
     
-    // Financial Chart (Bar) - Simplified
-    financialChartInstance = new Chart(document.getElementById('financialChart'), {
-        type: 'bar',
-        data: {
-            labels: ['المدخول الكلي ', 'الربح الإجمالي'],
-            datasets: [{
-                label: 'القيمة (دينار)',
-                data: [ stats.sales.totalRevenue, stats.profit.grossProfit ],
-                backgroundColor: [
-                    THEME_COLORS.primary,
-                    stats.profit.grossProfit < 0 ? THEME_COLORS.danger : THEME_COLORS.success
-                ],
-                borderRadius: 4,
-                borderWidth: 0
-            }]
-        },
-        options: {
-            ...commonOptions,
-            plugins: { ...commonOptions.plugins, legend: { display: false }, title: { ...commonOptions.plugins.title, text: ' ' } },
-            scales: { ...commonOptions.scales, x: { ...commonOptions.scales.x, title: { ...commonOptions.scales.x.title, text: '' } } }
-        }
-    });
+    // Financial Chart (Bar)
+    {
+        financialChartInstance = new Chart(document.getElementById('financialChart'), {
+            type: 'bar',
+            data: {
+                labels: ['المدخول الكلي', 'الربح الإجمالي'],
+                datasets: [{
+                    label: 'القيمة (دينار)',
+                    data: [stats.sales.totalRevenue, stats.profit.grossProfit],
+                    backgroundColor: [
+                        THEME_COLORS.primary,
+                        stats.profit.grossProfit < 0 ? THEME_COLORS.danger : THEME_COLORS.success
+                    ],
+                    borderRadius: 4,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                ...commonOptions,
+                plugins: { ...commonOptions.plugins, legend: { display: false }, title: { ...commonOptions.plugins.title, text: 'رباحة مقارنة بالمدخول' } },
+                scales: { ...commonOptions.scales, x: { ...commonOptions.scales.x, title: { ...commonOptions.scales.x.title, text: '' } } }
+            }
+        });
+    }
 
     // Top Products Chart (Pie)
-    topProductsChartInstance = new Chart(document.getElementById('topProductsChart'), {
-        type: 'pie',
-        data: {
-            labels: stats.sales.topSoldItems.map(item => item.product_name),
-            datasets: [{
-                label: 'الإيرادات',
-                data: stats.sales.topSoldItems.map(item => item.total_revenue),
-                backgroundColor: THEME_COLORS.pie,
-                borderColor: isDarkMode ? '#1f2937' : '#ffffff',
-                borderWidth: 2
-            }]
-        },
-        options: {
-            ...commonOptions,
-            plugins: {
-                ...commonOptions.plugins,
-                title: { ...commonOptions.plugins.title, text: ' ' },
-                legend: { ...commonOptions.plugins.legend, position: 'right' },
-                tooltip: { ...commonOptions.plugins.tooltip, callbacks: { label: context => `${context.label}: ${context.parsed.toFixed(2)} دينار` } },
-                datalabels: {
-                    formatter: (value, ctx) => {
-                        const sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                        const percentage = sum > 0 ? (value * 100 / sum).toFixed(1) + "%" : "0%";
-                        return percentage;
-                    },
-                    color: '#fff',
-                    font: { weight: 'bold' }
-                }
+    {
+        topProductsChartInstance = new Chart(document.getElementById('topProductsChart'), {
+            type: 'pie',
+            data: {
+                labels: stats.sales.topSoldItems.map(item => item.product_name),
+                datasets: [{
+                    label: 'الإيرادات',
+                    data: stats.sales.topSoldItems.map(item => item.total_revenue),
+                    backgroundColor: THEME_COLORS.pie,
+                    borderColor: isDarkMode ? '#1f2937' : '#ffffff',
+                    borderWidth: 2
+                }]
             },
-            scales: { y: { display: false }, x: { display: false } }
-        },
-        plugins: [ChartDataLabels]
-    });
+            options: {
+                ...commonOptions,
+                plugins: {
+                    ...commonOptions.plugins,
+                    title: { ...commonOptions.plugins.title, text: 'السلعة اللي بعت منها بمدخول كتر' },
+                    legend: { ...commonOptions.plugins.legend, position: 'right' },
+                    tooltip: { ...commonOptions.plugins.tooltip, callbacks: { label: context => `${context.label}: ${context.parsed.toFixed(2)} دينار` } },
+                    datalabels: {
+                        formatter: (value, ctx) => {
+                            const sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                            const percentage = sum > 0 ? (value * 100 / sum).toFixed(1) + "%" : "0%";
+                            return percentage;
+                        },
+                        color: '#fff',
+                        font: { weight: 'bold' }
+                    }
+                },
+                scales: { y: { display: false }, x: { display: false } }
+            },
+            plugins: [ChartDataLabels]
+        });
+    }
 
     // Revenue Trend Chart (Line)
-    revenueTrendChartInstance = new Chart(document.getElementById('revenueTrendChart'), {
-        type: 'line',
-        data: {
-            labels: stats.revenueTrend.map(item => item.date),
-            datasets: [{
-                label: 'المدخول اليومي',
-                data: stats.revenueTrend.map(item => item.daily_revenue),
-                borderColor: THEME_COLORS.primary,
-                backgroundColor: isDarkMode ? 'rgba(30, 58, 138, 0.3)' : 'rgba(30, 58, 138, 0.1)',
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: {
-            ...commonOptions,
-            plugins: { ...commonOptions.plugins, title: { ...commonOptions.plugins.title, text: ' ' } },
-            scales: { ...commonOptions.scales, x: { ...commonOptions.scales.x, grid: { display: false }, title: { ...commonOptions.scales.x.title, text: 'التاريخ' } } }
-        }
-    });
+    {
+        revenueTrendChartInstance = new Chart(document.getElementById('revenueTrendChart'), {
+            type: 'line',
+            data: {
+                labels: stats.revenueTrend.map(item => item.date),
+                datasets: [{
+                    label: 'المدخول اليومي',
+                    data: stats.revenueTrend.map(item => item.daily_revenue),
+                    borderColor: THEME_COLORS.primary,
+                    backgroundColor: isDarkMode ? 'rgba(30, 58, 138, 0.3)' : 'rgba(30, 58, 138, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                ...commonOptions,
+                plugins: { ...commonOptions.plugins, title: { ...commonOptions.plugins.title, text: 'الشهورا اللي راك تخدم فيهم مليح' } },
+                scales: { ...commonOptions.scales, x: { ...commonOptions.scales.x, grid: { display: false }, title: { ...commonOptions.scales.x.title, text: 'التاريخ' } } }
+            }
+        });
+    }
 }
 
 // Initialize with All Data

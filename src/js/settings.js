@@ -1,4 +1,22 @@
 import Database from '../database/Database.js';
+import { manageBackup } from './backup.js';
+
+
+// Trigger backup when the backup button is clicked
+function triggerBackup() {
+    console.log('settings.js: Backup button clicked, triggering manual backup');
+    manageBackup(true); // Pass true to indicate manual backup
+}
+
+// Attach event listener to backup button
+document.addEventListener('DOMContentLoaded', () => {
+    const backupButton = document.getElementById('backup-button');
+    if (backupButton) {
+        backupButton.addEventListener('click', triggerBackup);
+    } else {
+        console.error('settings.js: Backup button not found');
+    }
+});
 
 async function initializeDB() {
     try {

@@ -6,13 +6,13 @@ import Database from './Database.js';
 class SalesDB extends Database {
     /**
      * Adds a new sale to the database.
-     * @param {Object} sale - Sale details {client_id, date, subtotal, sale_discount_amount, total, paid, remaining, is_credit}.
+     * @param {Object} sale - Sale details {client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit}.
      * @returns {Promise<number>} The ID of the newly inserted sale.
      * @throws {Error} If input is invalid or database error occurs.
      */
     async addSale(sale) {
         console.log('SalesDB.js: addSale called with:', JSON.stringify(sale, null, 2));
-        const { client_id, date, subtotal, sale_discount_amount = 0, total, paid, remaining, is_credit } = sale;
+        const { client_id, date, subtotal, sale_discount_amount = 0, delivery_price = 0, total, paid, remaining, is_credit } = sale;
         
         // Validate input
         console.log('SalesDB.js: Validating sale data');
@@ -27,6 +27,10 @@ class SalesDB extends Database {
         if (!Number.isFinite(sale_discount_amount) || sale_discount_amount < 0) {
             console.error('SalesDB.js: Invalid sale discount amount:', sale_discount_amount);
             throw new Error('Invalid sale discount amount provided.');
+        }
+        if (!Number.isFinite(delivery_price) || delivery_price < 0) {
+            console.error('SalesDB.js: Invalid delivery price:', delivery_price);
+            throw new Error('Invalid delivery price provided.');
         }
         if (!Number.isFinite(total) || total < 0) {
             console.error('SalesDB.js: Invalid total:', total);
@@ -64,11 +68,11 @@ class SalesDB extends Database {
             }
 
             // Insert sale
-            const params = [client_id || null, date, subtotal, sale_discount_amount, total, paid, remaining, is_credit ? 1 : 0];
+            const params = [client_id || null, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit ? 1 : 0];
             console.log('SalesDB.js: Executing insert query with params:', params);
             const stmt = db.prepare(
-                `INSERT INTO sales (client_id, date, subtotal, sale_discount_amount, total, paid, remaining, is_credit) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+                `INSERT INTO sales (client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
                 params
             );
             stmt.run();
@@ -182,10 +186,10 @@ class SalesDB extends Database {
     }
 
     /**
-     * Retrieves all sales with optional date range filtering.
+     * Retrieves all sales with optional date range filtering, adjusted profit calculation.
      * @param {string} [startDate] - Start date in YYYY-MM-DD format.
      * @param {string} [endDate] - End date in YYYY-MM-DD format.
-     * @returns {Promise<Array<Object>>} Array of sales with client names and calculated profit and total discount.
+     * @returns {Promise<Array<Object>>} Array of sales with client names, calculated profit, total discount, and delivery price.
      */
     async getAllSales(startDate = '', endDate = '') {
         console.log('SalesDB.js: getAllSales called with:', { startDate, endDate });
@@ -195,10 +199,9 @@ class SalesDB extends Database {
             
             let query = `
                 SELECT
-                    s.sale_id, s.date, s.total, s.paid, s.remaining, s.is_credit,
-                    s.sale_discount_amount,
+                    s.sale_id, s.date, s.subtotal, s.sale_discount_amount, s.delivery_price, s.total, s.paid, s.remaining, s.is_credit,
                     c.name as client_name,
-                    (s.total - COALESCE(SUM(si.quantity * p.purchase_price), 0)) as profit,
+                    (s.total - COALESCE(SUM(si.quantity * p.purchase_price), 0) + s.delivery_price) as profit,
                     (s.sale_discount_amount + COALESCE(SUM(si.discount_amount), 0)) as total_discount
                 FROM sales s
                 LEFT JOIN clients c ON s.client_id = c.client_id
@@ -241,17 +244,24 @@ class SalesDB extends Database {
         }
     }
 
+    /**
+     * Updates an existing sale in the database.
+     * @param {number} sale_id - The ID of the sale to update.
+     * @param {Object} sale - Sale details {client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit}.
+     * @throws {Error} If input is invalid or database error occurs.
+     */
     async updateSale(sale_id, sale) {
         console.log('SalesDB.js: updateSale called with:', { sale_id, sale });
-        const { client_id, date, subtotal, sale_discount_amount = 0, total, paid, remaining, is_credit } = sale;
+        const { client_id, date, subtotal, sale_discount_amount = 0, delivery_price = 0, total, paid, remaining, is_credit } = sale;
         if (!Number.isInteger(sale_id) || sale_id <= 0 ||
             !date || !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
             !Number.isFinite(subtotal) || subtotal < 0 ||
             !Number.isFinite(sale_discount_amount) || sale_discount_amount < 0 ||
+            !Number.isFinite(delivery_price) || delivery_price < 0 ||
             !Number.isFinite(total) || total < 0 ||
             !Number.isFinite(paid) || paid < 0 ||
             !Number.isFinite(remaining) || remaining < 0) {
-            console.error('SalesDB.js: Invalid sale data:', { sale_id, client_id, date, subtotal, sale_discount_amount, total, paid, remaining, is_credit });
+            console.error('SalesDB.js: Invalid sale data:', { sale_id, client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit });
             throw new Error('Invalid sale data provided.');
         }
         try {
@@ -265,10 +275,10 @@ class SalesDB extends Database {
                 }
                 clientStmt.free();
             }
-            const params = [client_id || null, date, subtotal, sale_discount_amount, total, paid, remaining, is_credit ? 1 : 0, sale_id];
+            const params = [client_id || null, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit ? 1 : 0, sale_id];
             const stmt = db.prepare(
                 `UPDATE sales 
-                 SET client_id = ?, date = ?, subtotal = ?, sale_discount_amount = ?, total = ?, paid = ?, remaining = ?, is_credit = ?
+                 SET client_id = ?, date = ?, subtotal = ?, sale_discount_amount = ?, delivery_price = ?, total = ?, paid = ?, remaining = ?, is_credit = ?
                  WHERE sale_id = ?;`,
                 params
             );
@@ -282,6 +292,11 @@ class SalesDB extends Database {
         }
     }
 
+    /**
+     * Deletes a sale and restocks associated products.
+     * @param {number} sale_id - The ID of the sale to delete.
+     * @throws {Error} If sale_id is invalid or database error occurs.
+     */
     async deleteSale(sale_id) {
         console.log('SalesDB.js: deleteSale called with sale_id:', sale_id);
         if (!Number.isInteger(sale_id) || sale_id <= 0) {
@@ -340,6 +355,12 @@ class SalesDB extends Database {
         }
     }
 
+    /**
+     * Retrieves a sale by its ID.
+     * @param {number} sale_id - The ID of the sale to retrieve.
+     * @returns {Promise<Object|null>} Sale object or null if not found.
+     * @throws {Error} If sale_id is invalid or database error occurs.
+     */
     async getSaleById(sale_id) {
         console.log('SalesDB.js: getSaleById called with sale_id:', sale_id);
         if (!Number.isInteger(sale_id) || sale_id <= 0) {
@@ -373,6 +394,11 @@ class SalesDB extends Database {
         }
     }
 
+    /**
+     * Retrieves all credit sales with remaining balance.
+     * @returns {Promise<Array<Object>>} Array of credit sales with client names.
+     * @throws {Error} If database error occurs.
+     */
     async getCreditSales() {
         console.log('SalesDB.js: getCreditSales called');
         try {
@@ -401,6 +427,11 @@ class SalesDB extends Database {
         }
     }
 
+    /**
+     * Retrieves the total number of sales.
+     * @returns {Promise<number>} Total number of sales.
+     * @throws {Error} If database error occurs.
+     */
     async getTotalSalesCount() {
         console.log('SalesDB.js: getTotalSalesCount called');
         try {
@@ -416,6 +447,13 @@ class SalesDB extends Database {
         }
     }
 
+    /**
+     * Calculates the total sales amount within an optional date range.
+     * @param {string} [startDate] - Start date in YYYY-MM-DD format.
+     * @param {string} [endDate] - End date in YYYY-MM-DD format.
+     * @returns {Promise<number>} Total sales amount.
+     * @throws {Error} If date format is invalid or database error occurs.
+     */
     async getTotalSalesAmount(startDate = '', endDate = '') {
         console.log('SalesDB.js: getTotalSalesAmount called with:', { startDate, endDate });
         if ((startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) ||
@@ -449,6 +487,12 @@ class SalesDB extends Database {
         }
     }
 
+    /**
+     * Retrieves all sales for a specific client.
+     * @param {number} client_id - The ID of the client.
+     * @returns {Promise<Array<Object>>} Array of sales for the client with client name.
+     * @throws {Error} If client_id is invalid or database error occurs.
+     */
     async getSalesByClient(client_id) {
         console.log('SalesDB.js: getSalesByClient called with client_id:', client_id);
         if (!Number.isInteger(client_id) || client_id <= 0) {
@@ -482,6 +526,12 @@ class SalesDB extends Database {
         }
     }
 
+    /**
+     * Adds multiple sales to the database in a single transaction.
+     * @param {Array<Object>} sales - Array of sale objects {client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit}.
+     * @returns {Promise<Array<number>>} Array of inserted sale IDs.
+     * @throws {Error} If input is invalid or database error occurs.
+     */
     async addBulkSales(sales) {
         console.log('SalesDB.js: addBulkSales called with:', sales.length, 'sales');
         console.debug('SalesDB.js: Sales data:', sales);
@@ -497,20 +547,21 @@ class SalesDB extends Database {
             console.debug('SalesDB.js: Transaction started for addBulkSales');
             try {
                 for (const sale of sales) {
-                    const { client_id, date, subtotal, sale_discount_amount = 0, total, paid, remaining, is_credit } = sale;
+                    const { client_id, date, subtotal, sale_discount_amount = 0, delivery_price = 0, total, paid, remaining, is_credit } = sale;
                     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
                         !Number.isFinite(subtotal) || subtotal < 0 ||
                         !Number.isFinite(sale_discount_amount) || sale_discount_amount < 0 ||
+                        !Number.isFinite(delivery_price) || delivery_price < 0 ||
                         !Number.isFinite(total) || total < 0 ||
                         !Number.isFinite(paid) || paid < 0 ||
                         !Number.isFinite(remaining) || remaining < 0) {
-                        console.error('SalesDB.js: Invalid sale data in bulk insert:', { client_id, date, subtotal, sale_discount_amount, total, paid, remaining, is_credit });
+                        console.error('SalesDB.js: Invalid sale data in bulk insert:', { client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit });
                         throw new Error('Invalid sale data in bulk insert.');
                     }
-                    const params = [client_id || null, date, subtotal, sale_discount_amount, total, paid, remaining, is_credit ? 1 : 0];
+                    const params = [client_id || null, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit ? 1 : 0];
                     const stmt = db.prepare(
-                        `INSERT INTO sales (client_id, date, subtotal, sale_discount_amount, total, paid, remaining, is_credit) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+                        `INSERT INTO sales (client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
                         params
                     );
                     console.debug('SalesDB.js: Executing insert query with params:', params);
@@ -535,6 +586,162 @@ class SalesDB extends Database {
         } catch (error) {
             console.error('SalesDB.js: Error in addBulkSales:', error.message, error.stack);
             throw new Error(`Failed to add bulk sales: ${error.message}`);
+        }
+    }
+
+    /**
+     * Calculates the total delivery price within an optional date range.
+     * @param {string} [startDate] - Start date in YYYY-MM-DD format.
+     * @param {string} [endDate] - End date in YYYY-MM-DD format.
+     * @returns {Promise<number>} Total delivery price.
+     * @throws {Error} If date format is invalid or database error occurs.
+     */
+    async getTotalDeliveryPrice(startDate = '', endDate = '') {
+        console.log('SalesDB.js: getTotalDeliveryPrice called with:', { startDate, endDate });
+        if ((startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) ||
+            (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate))) {
+            console.error('SalesDB.js: Invalid date format:', { startDate, endDate });
+            throw new Error('Invalid date format. Use YYYY-MM-DD.');
+        }
+        try {
+            const db = await this.getDB();
+            console.debug('SalesDB.js: Database connection established for getTotalDeliveryPrice');
+            let query = `SELECT SUM(delivery_price) as total_delivery FROM sales`;
+            const params = [];
+            if (startDate && endDate) {
+                query += ` WHERE date BETWEEN ? AND ?`;
+                params.push(startDate, endDate);
+            } else if (startDate) {
+                query += ` WHERE date >= ?`;
+                params.push(startDate);
+            } else if (endDate) {
+                query += ` WHERE date <= ?`;
+                params.push(endDate);
+            }
+            console.debug('SalesDB.js: Executing query:', query, 'with params:', params);
+            const result = db.exec(query, params);
+            const totalDelivery = result[0].values[0][0] || 0;
+            console.log('SalesDB.js: getTotalDeliveryPrice result:', totalDelivery);
+            return totalDelivery;
+        } catch (error) {
+            console.error('SalesDB.js: Error calculating total delivery price:', error.message, error.stack);
+            throw new Error(`Failed to calculate total delivery price: ${error.message}`);
+        }
+    }
+
+    /**
+     * Retrieves sales with filters and pagination.
+     * @param {Object} filters - Filters { startDate, endDate, clientSearch, saleType }.
+     * @param {number} page - Page number (1-based).
+     * @param {number} pageSize - Number of sales per page.
+     * @returns {Promise<{ sales: Array<Object>, total: number }>} Paginated sales and total count.
+     * @throws {Error} If filters are invalid or database error occurs.
+     */
+    async getSalesWithFilters(filters, page, pageSize) {
+        console.log('SalesDB.js: getSalesWithFilters called with:', { filters, page, pageSize });
+        const { startDate = '', endDate = '', clientSearch = '', saleType = 'all' } = filters;
+
+        // Validate inputs
+        if ((startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) ||
+            (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate))) {
+            console.error('SalesDB.js: Invalid date format:', { startDate, endDate });
+            throw new Error('Invalid date format. Use YYYY-MM-DD.');
+        }
+        if (!Number.isInteger(page) || page < 1) {
+            console.error('SalesDB.js: Invalid page number:', page);
+            throw new Error('Invalid page number provided.');
+        }
+        if (!Number.isInteger(pageSize) || pageSize < 1) {
+            console.error('SalesDB.js: Invalid page size:', pageSize);
+            throw new Error('Invalid page size provided.');
+        }
+
+        try {
+            const db = await this.getDB();
+            console.debug('SalesDB.js: Database connection established for getSalesWithFilters');
+
+            // Build query conditions
+            const conditions = [];
+            const params = [];
+
+            if (startDate) {
+                conditions.push('s.date >= ?');
+                params.push(startDate);
+            }
+            if (endDate) {
+                conditions.push('s.date <= ?');
+                params.push(endDate);
+            }
+            if (clientSearch) {
+                conditions.push('c.name LIKE ?');
+                params.push(`%${clientSearch}%`);
+            }
+            if (saleType === 'credit') {
+                conditions.push('s.is_credit = 1');
+            } else if (saleType === 'paid') {
+                conditions.push('s.is_credit = 0');
+            }
+
+            // Base query for sales
+            let query = `
+                SELECT
+                    s.sale_id, s.date, s.subtotal, s.sale_discount_amount, s.delivery_price, s.total, s.paid, s.remaining, s.is_credit,
+                    c.name as client_name,
+                    (s.total - COALESCE(SUM(si.quantity * p.purchase_price), 0) + s.delivery_price) as profit,
+                    (s.sale_discount_amount + COALESCE(SUM(si.discount_amount), 0)) as total_discount
+                FROM sales s
+                LEFT JOIN clients c ON s.client_id = c.client_id
+                LEFT JOIN sale_items si ON s.sale_id = si.sale_id
+                LEFT JOIN products p ON si.product_id = p.product_id
+            `;
+
+            // Count query for total records
+            let countQuery = `
+                SELECT COUNT(DISTINCT s.sale_id) as total
+                FROM sales s
+                LEFT JOIN clients c ON s.client_id = c.client_id
+                LEFT JOIN sale_items si ON s.sale_id = si.sale_id
+            `;
+
+            // Apply conditions
+            if (conditions.length > 0) {
+                const whereClause = ' WHERE ' + conditions.join(' AND ');
+                query += whereClause;
+                countQuery += whereClause;
+            }
+
+            // Group and order for main query
+            query += `
+                GROUP BY s.sale_id
+                ORDER BY s.sale_id DESC
+                LIMIT ? OFFSET ?;
+            `;
+            params.push(pageSize, (page - 1) * pageSize);
+
+            console.debug('SalesDB.js: Executing query:', query, 'with params:', params);
+            console.debug('SalesDB.js: Executing count query:', countQuery, 'with params:', params.slice(0, params.length - 2));
+
+            // Execute main query
+            const stmt = db.prepare(query, params);
+            const sales = [];
+            while (stmt.step()) {
+                sales.push(stmt.getAsObject());
+            }
+            stmt.free();
+
+            // Execute count query
+            const countStmt = db.prepare(countQuery, params.slice(0, params.length - 2));
+            let total = 0;
+            if (countStmt.step()) {
+                total = countStmt.getAsObject().total;
+            }
+            countStmt.free();
+
+            console.log('SalesDB.js: getSalesWithFilters retrieved:', sales.length, 'sales, total:', total);
+            return { sales, total };
+        } catch (error) {
+            console.error('SalesDB.js: Error in getSalesWithFilters:', error.message, error.stack);
+            throw new Error(`Failed to fetch filtered sales: ${error.message}`);
         }
     }
 }

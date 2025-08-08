@@ -18,6 +18,7 @@ const urlsToCache = [
   '/js/add-product.js',
   '/js/add-sale.js',
   '/js/auth.js',
+  'js/backup.js',
   '/js/clientManager.js',
   '/js/clients.js',
   '/js/dashboard.js',
@@ -44,7 +45,8 @@ const urlsToCache = [
   'https://cdn.jsdelivr.net/npm/flatpickr',
   'https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/ar.js',
   'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css',
-  'https://apis.google.com/js/api.js'
+  'https://apis.google.com/js/api.js',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 ];
 
 const NETWORK_ONLY_DOMAINS = [
@@ -53,7 +55,10 @@ const NETWORK_ONLY_DOMAINS = [
   'accounts.google.com',
   'drive.google.com',
   'https://oauth2.googleapis.com/token',
-  'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'
+  'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
+  'https://cdn.tailwindcss.com',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
+  'http://127.0.0.1:3000'
 ];
 
 self.addEventListener('install', event => {
