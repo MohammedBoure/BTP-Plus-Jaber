@@ -21,10 +21,7 @@ class Database {
                 console.log("إنشاء قاعدة بيانات جديدة...");
                 this.db = new this.SQL.Database();
                 this.createTables();
-                // --- THIS IS THE NEW PART ---
-                // Seed the database with initial data only on the first run.
                 //await this._seedInitialData();
-                // --- END OF NEW PART ---
                 await this.save();
             }
             const productCount = this.db.exec(`SELECT COUNT(*) AS count FROM products`)[0].values[0][0];
@@ -113,7 +110,8 @@ class Database {
                 date DATE NOT NULL, 
                 subtotal REAL NOT NULL, 
                 sale_discount_amount REAL NOT NULL DEFAULT 0, 
-                delivery_price REAL NOT NULL DEFAULT 0, -- حقل جديد لتكلفة التوصيل
+                delivery_price REAL NOT NULL DEFAULT 0, 
+                labor_cost REAL NOT NULL DEFAULT 0, 
                 total REAL NOT NULL, 
                 paid REAL NOT NULL, 
                 remaining REAL NOT NULL, 
@@ -144,11 +142,10 @@ class Database {
                 FOREIGN KEY (client_id) REFERENCES clients(client_id)
             );
         `);
-        // جدول جديد لطلبات الشراء (اختياري)
         this.db.run(`
             CREATE TABLE IF NOT EXISTS purchase_orders (
                 purchase_order_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                supplier_id INTEGER, -- يمكن إضافة جدول suppliers إذا لزم
+                supplier_id INTEGER, 
                 date DATE NOT NULL,
                 subtotal REAL NOT NULL,
                 delivery_price REAL NOT NULL DEFAULT 0,
@@ -158,15 +155,11 @@ class Database {
         `);
     }
 
-    // =================================================================
-    // NEW FUNCTION TO SEED INITIAL DATA
-    // =================================================================
     async _seedInitialData() {
         console.log("قاعدة بيانات جديدة. جارٍ إدخال البيانات الأولية...");
         try {
             this.db.exec("BEGIN TRANSACTION;");
 
-            // 1. Products (بدون تغيير)
             const products = [
                 { id: 1, name: 'أسمنت بورتلاندي', unit: 'كيس (50 كجم)', price: 15, purchase: 12, stock: 500, min: 50 },
                 { id: 2, name: 'رمل بناء ناعم', unit: 'متر مكعب', price: 25, purchase: 18, stock: 100, min: 10 },
@@ -183,14 +176,12 @@ class Database {
             products.forEach(p => productStmt.run([p.id, p.name, p.unit, p.price, p.purchase, p.stock, p.min]));
             productStmt.free();
 
-            // 2. Clients (بدون تغيير)
             const clients = Array.from({ length: 30 }, (_, i) => ({ id: Date.now() + i, name: `العميل رقم ${i + 1}`, phone: `05012345${i.toString().padStart(2, '0')}`, address: `العنوان ${i+1}` }));
             const clientStmt = this.db.prepare("INSERT INTO clients (client_id, name, phone, address) VALUES (?, ?, ?, ?)");
             clients.forEach(c => clientStmt.run([c.id, c.name, c.phone, c.address]));
             clientStmt.free();
 
-            // 3. Sales, Sale Items, and Payments (مع إضافة تكلفة التوصيل)
-            const saleStmt = this.db.prepare("INSERT INTO sales (client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            const saleStmt = this.db.prepare("INSERT INTO sales (client_id, date, subtotal, sale_discount_amount, delivery_price, labor_cost, total, paid, remaining, is_credit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             const itemStmt = this.db.prepare("INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?)");
             const paymentStmt = this.db.prepare("INSERT INTO payments (payment_id, client_id, date, amount, notes) VALUES (?, ?, ?, ?, ?)");
             
@@ -215,10 +206,11 @@ class Database {
                     saleItems.push({ product_id: product.id, quantity, unit_price: product.price, total_price: itemTotal });
                 }
                 
-                const saleDiscount = Math.random() < 0.3 ? subtotal * (Math.random() * 0.1) : 0; // خصم عشوائي بنسبة 30%
-                const deliveryPrice = Math.random() < 0.6 ? (Math.random() * 50 + 10).toFixed(2) : 0; // تكلفة توصيل عشوائية بنسبة 60%
-                const total = (subtotal - saleDiscount + parseFloat(deliveryPrice)).toFixed(2);
-                const isCredit = Math.random() < 0.4; // 40% chance of credit sale
+                const saleDiscount = Math.random() < 0.3 ? subtotal * (Math.random() * 0.1) : 0;
+                const deliveryPrice = Math.random() < 0.6 ? (Math.random() * 50 + 10).toFixed(2) : 0;
+                const laborCost = Math.random() < 0.5 ? (Math.random() * 100 + 20).toFixed(2) : 0;
+                const total = (subtotal - saleDiscount + parseFloat(deliveryPrice) + parseFloat(laborCost)).toFixed(2);
+                const isCredit = Math.random() < 0.4;
                 let paid = total;
                 let remaining = 0;
 
@@ -227,7 +219,7 @@ class Database {
                     remaining = (total - paid).toFixed(2);
                 }
 
-                saleStmt.run([client.id, saleDate.toISOString().slice(0, 10), subtotal.toFixed(2), saleDiscount.toFixed(2), deliveryPrice, total, paid, remaining, isCredit ? 1 : 0]);
+                saleStmt.run([client.id, saleDate.toISOString().slice(0, 10), subtotal.toFixed(2), saleDiscount.toFixed(2), deliveryPrice, laborCost, total, paid, remaining, isCredit ? 1 : 0]);
                 const saleId = this.db.exec("SELECT last_insert_rowid()")[0].values[0][0];
 
                 saleItems.forEach(item => { itemStmt.run([saleId, item.product_id, item.quantity, item.unit_price, item.total_price]); });
@@ -243,10 +235,9 @@ class Database {
             itemStmt.free();
             paymentStmt.free();
 
-            // 4. Purchase Orders (اختياري)
             const purchaseStmt = this.db.prepare("INSERT INTO purchase_orders (supplier_id, date, subtotal, delivery_price, total, notes) VALUES (?, ?, ?, ?, ?, ?)");
             for (let i = 0; i < 50; i++) {
-                const supplierId = Math.floor(Math.random() * 1000) + 1; // يمكن استبداله بجدول موردين
+                const supplierId = Math.floor(Math.random() * 1000) + 1;
                 const purchaseDate = new Date();
                 purchaseDate.setDate(purchaseDate.getDate() - Math.floor(Math.random() * 730));
                 const purchaseSubtotal = (Math.random() * 5000 + 1000).toFixed(2);

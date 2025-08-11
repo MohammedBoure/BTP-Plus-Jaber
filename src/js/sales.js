@@ -34,9 +34,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isAuthenticated = localStorage.getItem('isAuthenticated');
 
     // Initialize theme
-    const savedTheme = localStorage.getItem('theme') || 'dark';
+    const savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.classList.toggle('dark', savedTheme === 'dark');
-    
+    if (toggleThemeButton) {
+        toggleThemeButton.innerHTML = savedTheme === 'dark' ? '<i data-lucide="sun" class="w-4 h-4"></i>' : '<i data-lucide="moon" class="w-4 h-4"></i>';
+    }
+
     // Initialize sensitive information visibility
     if (isAdmin || isAuthenticated === null || isAuthenticated === 'true') {
         sensitiveInfoVisible = true;
@@ -58,18 +61,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         toggleSensitiveButton.classList.remove('hidden');
     }
 
-    // Custom Flatpickr locale for French months in Arabic transliteration
+    // Custom Flatpickr locale for Arabic
     const customLocale = {
         weekdays: {
             shorthand: ["أحد", "إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"],
             longhand: ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"]
         },
         months: {
-            shorthand: ["جانفي", "فيفري", "مارس", "أفريل", "ماي", "جوان", "جويلية", "أوت", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"],
-            longhand: ["جانفي", "فيفري", "مارس", "أفريل", "ماي", "جوان", "جويلية", "أوت", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
+            shorthand: ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"],
+            longhand: ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
         },
         firstDayOfWeek: 1,
-        ordinal: () => "",
         rangeSeparator: " إلى ",
         weekAbbreviation: "أسبوع",
         scrollTitle: "اسحب للتمرير",
@@ -78,7 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // Set default date range to last 30 days
-    const today = new Date('2025-08-08');
+    const today = new Date('2025-08-11');
     const endDate = today.toISOString().split('T')[0];
     const startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     startDateInput.value = startDate;
@@ -88,14 +90,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const startDatePicker = flatpickr(startDateInput, {
         dateFormat: "Y-m-d",
         locale: customLocale,
-        maxDate: "2025-08-08",
+        maxDate: "2025-08-11",
         defaultDate: startDate,
         theme: savedTheme
     });
     const endDatePicker = flatpickr(endDateInput, {
         dateFormat: "Y-m-d",
         locale: customLocale,
-        maxDate: "2025-08-08",
+        maxDate: "2025-08-11",
         defaultDate: endDate,
         theme: savedTheme
     });
@@ -107,33 +109,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         localStorage.setItem('theme', newTheme);
         toggleThemeButton.innerHTML = isDark ? '<i data-lucide="sun" class="w-4 h-4"></i>' : '<i data-lucide="moon" class="w-4 h-4"></i>';
         lucide.createIcons();
-
-        // Update Flatpickr theme
         startDatePicker.set('theme', newTheme);
         endDatePicker.set('theme', newTheme);
     }
 
-    // Initialize theme toggle button
     if (toggleThemeButton) {
-        toggleThemeButton.innerHTML = savedTheme === 'dark' ? '<i data-lucide="sun" class="w-4 h-4"></i>' : '<i data-lucide="moon" class="w-4 h-4"></i>';
         toggleThemeButton.addEventListener('click', toggleTheme);
-        lucide.createIcons();
     }
 
     // Toggle sensitive information visibility
     function toggleSensitiveInfo() {
         const isAuthenticated = localStorage.getItem('isAuthenticated');
         if (isAuthenticated === 'true') {
-            // Keep the authentication state as true
             localStorage.setItem('isAuthenticated', 'false');
             sensitiveInfoVisible = !sensitiveInfoVisible;
         } else if (isAuthenticated === null || isAuthenticated === 'false') {
             if (isAuthenticated === 'false') {
-                // Redirect to auth.html with current page URL
                 const currentURL = window.location.href;
                 const authURL = `auth.html?redirect=${encodeURIComponent(currentURL)}`;
                 window.location.href = authURL;
-                return; // Exit function to prevent further execution
+                return;
             }
             sensitiveInfoVisible = !sensitiveInfoVisible;
         }
@@ -184,10 +179,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         } catch (error) {
             console.error('Error loading sales:', error);
-            salesTableBody.innerHTML = `<tr><td colspan="${isAdmin || sensitiveInfoVisible ? 11 : 8}" class="text-center p-4 text-danger">فشل تحميل المبيعات: ${error.message}</td></tr>`;
+            salesTableBody.innerHTML = `<tr><td colspan="${isAdmin || sensitiveInfoVisible ? 12 : 9}" class="text-center p-4 text-danger">فشل تحميل المبيعات: ${error.message}</td></tr>`;
         }
     }
-    
+
     function renderPage(page) {
         currentPage = page;
         const totalSales = currentSales.length;
@@ -198,7 +193,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         salesTableBody.innerHTML = '';
         if (paginatedSales.length === 0) {
-            salesTableBody.innerHTML = `<tr><td colspan="${isAdmin || sensitiveInfoVisible ? 11 : 8}" class="text-center p-4 text-gray-500 dark:text-gray-400">لا توجد مبيعات تطابق معايير البحث.</td></tr>`;
+            salesTableBody.innerHTML = `<tr><td colspan="${isAdmin || sensitiveInfoVisible ? 12 : 9}" class="text-center p-4 text-gray-500 dark:text-gray-400">لا توجد مبيعات تطابق معايير البحث.</td></tr>`;
         } else {
             paginatedSales.forEach(sale => {
                 const remainingClass = sale.remaining > 0 ? 'text-danger' : 'text-gray-500 dark:text-gray-400';
@@ -210,17 +205,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const row = `
                     <tr class="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                         <td class="p-3 text-right">${sale.sale_id}</td>
-                        <td class="p-3 text-left" dir="ltr">${sale.date}</td>
-                        <td class="p-3 font-medium text-gray-900 dark:text-white text-right">${sale.client_name || 'بيع نقدي'}</td>
-                        <td class="p-3 text-left">${sale.total.toFixed(2)}</td>
-                        <td class="p-3 text-left ${sensitiveClass}">${(sale.sale_discount_amount || 0).toFixed(2)}</td>
-                        <td class="p-3 text-left">${(sale.delivery_price || 0).toFixed(2)}</td>
-                        <td class="p-3 font-semibold ${profitClass} text-left ${sensitiveClass}">${(sale.profit || 0).toFixed(2)}</td>
-                        <td class="p-3 text-success text-left">${sale.paid.toFixed(2)}</td>
-                        <td class="p-3 font-semibold ${remainingClass} text-left">${sale.remaining.toFixed(2)}</td>
-                        <td class="p-3 font-semibold ${typeClass} text-right">${typeText}</td>
-                        <td class="p-3 text-left">
-                            <div class="flex gap-2 justify-start">
+                        <td class="p-3 text-right" dir="ltr">${sale.date}</td>
+                        <td class="p-3 text-right">${sale.client_name || 'بيع نقدي'}</td>
+                        <td class="p-3 text-right">${sale.total.toFixed(2)}</td>
+                        <td class="p-3 text-right ${sensitiveClass}">${(sale.sale_discount_amount || 0).toFixed(2)}</td>
+                        <td class="p-3 text-right">${(sale.delivery_price || 0).toFixed(2)}</td>
+                        <td class="p-3 text-right">${(sale.labor_cost || 0).toFixed(2)}</td>
+                        <td class="p-3 text-right ${sensitiveClass}">${(sale.profit || 0).toFixed(2)}</td>
+                        <td class="p-3 text-right text-success">${sale.paid.toFixed(2)}</td>
+                        <td class="p-3 text-right font-semibold ${remainingClass}">${sale.remaining.toFixed(2)}</td>
+                        <td class="p-3 text-right font-semibold ${typeClass}">${typeText}</td>
+                        <td class="p-3 text-right">
+                            <div class="flex gap-2 justify-end">
                                 <button class="view-details p-2 rounded-md text-primary dark:text-blue-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="تفاصيل" data-sale-id="${sale.sale_id}">
                                     <i data-lucide="eye" class="w-4 h-4"></i>
                                 </button>
@@ -278,6 +274,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <label class="block text-sm text-gray-600 dark:text-gray-400">تكلفة التوصيل</label>
                     <p class="text-lg font-bold text-gray-800 dark:text-white">${(sale.delivery_price || 0).toFixed(2)}</p>
                 </div>
+                <div class="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                    <label class="block text-sm text-gray-600 dark:text-gray-400">تكلفة العمال</label>
+                    <p class="text-lg font-bold text-gray-800 dark:text-white">${(sale.labor_cost || 0).toFixed(2)}</p>
+                </div>
                 <div class="text-center p-3 bg-green-100 dark:bg-green-900/50 rounded-lg">
                     <label class="block text-sm text-green-600 dark:text-green-400">المدفوع</label>
                     <p class="text-lg font-bold text-success dark:text-green-400">${sale.paid.toFixed(2)}</p>
@@ -300,12 +300,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const row = `
                     <tr class="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
                         <td class="p-3 font-medium text-gray-900 dark:text-white text-right">${item.product_name}</td>
-                        <td class="p-3 text-left">${item.quantity}</td>
-                        <td class="p-3 text-left">${item.unit_price.toFixed(2)}</td>
-                        <td class="p-3 text-left ${sensitiveClass}">${item.discount_amount.toFixed(2)}</td>
-                        <td class="p-3 text-left">${item.total_price.toFixed(2)}</td>
-                        <td class="p-3 font-semibold ${itemProfitClass} text-left ${sensitiveClass}">${(item.item_profit || 0).toFixed(2)}</td>
-                        <td class="p-3 text-left">
+                        <td class="p-3 text-right">${item.quantity}</td>
+                        <td class="p-3 text-right">${item.unit_price.toFixed(2)}</td>
+                        <td class="p-3 text-right ${sensitiveClass}">${item.discount_amount.toFixed(2)}</td>
+                        <td class="p-3 text-right">${item.total_price.toFixed(2)}</td>
+                        <td class="p-3 font-semibold ${itemProfitClass} text-right ${sensitiveClass}">${(item.item_profit || 0).toFixed(2)}</td>
+                        <td class="p-3 text-right">
                             <button class="delete-item p-2 rounded-md text-danger dark:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" title="حذف العنصر" data-item-id="${item.sale_item_id}">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
@@ -321,7 +321,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             lucide.createIcons();
         } catch (error) {
             console.error('Error loading sale details:', error);
-            alert('Failed to load sale details: ' + error.message);
+            alert('فشل تحميل تفاصيل البيع: ' + error.message);
         }
     }
 
@@ -332,7 +332,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             await loadSales(currentPage); 
         } catch (error) { 
             console.error('Error deleting sale:', error); 
-            alert('Failed to delete sale: ' + error.message); 
+            alert('فشل حذف البيع: ' + error.message); 
         } 
     }
     
@@ -345,7 +345,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (saleId) await showSaleDetails(saleId); 
         } catch (error) { 
             console.error('Error deleting item:', error); 
-            alert('Failed to delete item: ' + error.message); 
+            alert('فشل حذف العنصر: ' + error.message); 
         } 
     }
     

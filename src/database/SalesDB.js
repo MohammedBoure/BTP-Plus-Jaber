@@ -6,13 +6,13 @@ import Database from './Database.js';
 class SalesDB extends Database {
     /**
      * Adds a new sale to the database.
-     * @param {Object} sale - Sale details {client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit}.
+     * @param {Object} sale - Sale details {client_id, date, subtotal, sale_discount_amount, delivery_price, labor_cost, total, paid, remaining, is_credit}.
      * @returns {Promise<number>} The ID of the newly inserted sale.
      * @throws {Error} If input is invalid or database error occurs.
      */
     async addSale(sale) {
         console.log('SalesDB.js: addSale called with:', JSON.stringify(sale, null, 2));
-        const { client_id, date, subtotal, sale_discount_amount = 0, delivery_price = 0, total, paid, remaining, is_credit } = sale;
+        const { client_id, date, subtotal, sale_discount_amount = 0, delivery_price = 0, labor_cost = 0, total, paid, remaining, is_credit } = sale;
         
         // Validate input
         console.log('SalesDB.js: Validating sale data');
@@ -31,6 +31,10 @@ class SalesDB extends Database {
         if (!Number.isFinite(delivery_price) || delivery_price < 0) {
             console.error('SalesDB.js: Invalid delivery price:', delivery_price);
             throw new Error('Invalid delivery price provided.');
+        }
+        if (!Number.isFinite(labor_cost) || labor_cost < 0) {
+            console.error('SalesDB.js: Invalid labor cost:', labor_cost);
+            throw new Error('Invalid labor cost provided.');
         }
         if (!Number.isFinite(total) || total < 0) {
             console.error('SalesDB.js: Invalid total:', total);
@@ -68,11 +72,11 @@ class SalesDB extends Database {
             }
 
             // Insert sale
-            const params = [client_id || null, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit ? 1 : 0];
+            const params = [client_id || null, date, subtotal, sale_discount_amount, delivery_price, labor_cost, total, paid, remaining, is_credit ? 1 : 0];
             console.log('SalesDB.js: Executing insert query with params:', params);
             const stmt = db.prepare(
-                `INSERT INTO sales (client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+                `INSERT INTO sales (client_id, date, subtotal, sale_discount_amount, delivery_price, labor_cost, total, paid, remaining, is_credit) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
                 params
             );
             stmt.run();
@@ -181,7 +185,7 @@ class SalesDB extends Database {
             return totalRemaining;
         } catch (error) {
             console.error('SalesDB.js: Error calculating total remaining:', error.message, error.stack);
-            throw new Error(`Failed to calculate total remaining: ${error.message}`);
+            throw new Error(`Failed calculated total remaining: ${error.message}`);
         }
     }
 
@@ -189,7 +193,7 @@ class SalesDB extends Database {
      * Retrieves all sales with optional date range filtering, adjusted profit calculation.
      * @param {string} [startDate] - Start date in YYYY-MM-DD format.
      * @param {string} [endDate] - End date in YYYY-MM-DD format.
-     * @returns {Promise<Array<Object>>} Array of sales with client names, calculated profit, total discount, and delivery price.
+     * @returns {Promise<Array<Object>>} Array of sales with client names, calculated profit, total discount, delivery price, and labor cost.
      */
     async getAllSales(startDate = '', endDate = '') {
         console.log('SalesDB.js: getAllSales called with:', { startDate, endDate });
@@ -197,9 +201,10 @@ class SalesDB extends Database {
             const db = await this.getDB();
             console.debug('SalesDB.js: Database connection established for getAllSales');
             
+            let Ascending
             let query = `
                 SELECT
-                    s.sale_id, s.date, s.subtotal, s.sale_discount_amount, s.delivery_price, s.total, s.paid, s.remaining, s.is_credit,
+                    s.sale_id, s.date, s.subtotal, s.sale_discount_amount, s.delivery_price, s.labor_cost, s.total, s.paid, s.remaining, s.is_credit,
                     c.name as client_name,
                     (s.total - COALESCE(SUM(si.quantity * p.purchase_price), 0) + s.delivery_price) as profit,
                     (s.sale_discount_amount + COALESCE(SUM(si.discount_amount), 0)) as total_discount
@@ -247,21 +252,22 @@ class SalesDB extends Database {
     /**
      * Updates an existing sale in the database.
      * @param {number} sale_id - The ID of the sale to update.
-     * @param {Object} sale - Sale details {client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit}.
+     * @param {Object} sale - Sale details {client_id, date, subtotal, sale_discount_amount, delivery_price, labor_cost, total, paid, remaining, is_credit}.
      * @throws {Error} If input is invalid or database error occurs.
      */
     async updateSale(sale_id, sale) {
         console.log('SalesDB.js: updateSale called with:', { sale_id, sale });
-        const { client_id, date, subtotal, sale_discount_amount = 0, delivery_price = 0, total, paid, remaining, is_credit } = sale;
+        const { client_id, date, subtotal, sale_discount_amount = 0, delivery_price = 0, labor_cost = 0, total, paid, remaining, is_credit } = sale;
         if (!Number.isInteger(sale_id) || sale_id <= 0 ||
             !date || !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
             !Number.isFinite(subtotal) || subtotal < 0 ||
             !Number.isFinite(sale_discount_amount) || sale_discount_amount < 0 ||
             !Number.isFinite(delivery_price) || delivery_price < 0 ||
+            !Number.isFinite(labor_cost) || labor_cost < 0 ||
             !Number.isFinite(total) || total < 0 ||
             !Number.isFinite(paid) || paid < 0 ||
             !Number.isFinite(remaining) || remaining < 0) {
-            console.error('SalesDB.js: Invalid sale data:', { sale_id, client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit });
+            console.error('SalesDB.js: Invalid sale data:', { sale_id, client_id, date, subtotal, sale_discount_amount, delivery_price, labor_cost, total, paid, remaining, is_credit });
             throw new Error('Invalid sale data provided.');
         }
         try {
@@ -275,10 +281,10 @@ class SalesDB extends Database {
                 }
                 clientStmt.free();
             }
-            const params = [client_id || null, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit ? 1 : 0, sale_id];
+            const params = [client_id || null, date, subtotal, sale_discount_amount, delivery_price, labor_cost, total, paid, remaining, is_credit ? 1 : 0, sale_id];
             const stmt = db.prepare(
                 `UPDATE sales 
-                 SET client_id = ?, date = ?, subtotal = ?, sale_discount_amount = ?, delivery_price = ?, total = ?, paid = ?, remaining = ?, is_credit = ?
+                 SET client_id = ?, date = ?, subtotal = ?, sale_discount_amount = ?, delivery_price = ?, labor_cost = ?, total = ?, paid = ?, remaining = ?, is_credit = ?
                  WHERE sale_id = ?;`,
                 params
             );
@@ -528,7 +534,7 @@ class SalesDB extends Database {
 
     /**
      * Adds multiple sales to the database in a single transaction.
-     * @param {Array<Object>} sales - Array of sale objects {client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit}.
+     * @param {Array<Object>} sales - Array of sale objects {client_id, date, subtotal, sale_discount_amount, delivery_price, labor_cost, total, paid, remaining, is_credit}.
      * @returns {Promise<Array<number>>} Array of inserted sale IDs.
      * @throws {Error} If input is invalid or database error occurs.
      */
@@ -547,21 +553,22 @@ class SalesDB extends Database {
             console.debug('SalesDB.js: Transaction started for addBulkSales');
             try {
                 for (const sale of sales) {
-                    const { client_id, date, subtotal, sale_discount_amount = 0, delivery_price = 0, total, paid, remaining, is_credit } = sale;
+                    const { client_id, date, subtotal, sale_discount_amount = 0, delivery_price = 0, labor_cost = 0, total, paid, remaining, is_credit } = sale;
                     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
                         !Number.isFinite(subtotal) || subtotal < 0 ||
                         !Number.isFinite(sale_discount_amount) || sale_discount_amount < 0 ||
                         !Number.isFinite(delivery_price) || delivery_price < 0 ||
+                        !Number.isFinite(labor_cost) || labor_cost < 0 ||
                         !Number.isFinite(total) || total < 0 ||
                         !Number.isFinite(paid) || paid < 0 ||
                         !Number.isFinite(remaining) || remaining < 0) {
-                        console.error('SalesDB.js: Invalid sale data in bulk insert:', { client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit });
+                        console.error('SalesDB.js: Invalid sale data in bulk insert:', { client_id, date, subtotal, sale_discount_amount, delivery_price, labor_cost, total, paid, remaining, is_credit });
                         throw new Error('Invalid sale data in bulk insert.');
                     }
-                    const params = [client_id || null, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit ? 1 : 0];
+                    const params = [client_id || null, date, subtotal, sale_discount_amount, delivery_price, labor_cost, total, paid, remaining, is_credit ? 1 : 0];
                     const stmt = db.prepare(
-                        `INSERT INTO sales (client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+                        `INSERT INTO sales (client_id, date, subtotal, sale_discount_amount, delivery_price, labor_cost, total, paid, remaining, is_credit) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
                         params
                     );
                     console.debug('SalesDB.js: Executing insert query with params:', params);
@@ -630,6 +637,46 @@ class SalesDB extends Database {
     }
 
     /**
+     * Calculates the total labor cost within an optional date range.
+     * @param {string} [startDate] - Start date in YYYY-MM-DD format.
+     * @param {string} [endDate] - End date in YYYY-MM-DD format.
+     * @returns {Promise<number>} Total labor cost.
+     * @throws {Error} If date format is invalid or database error occurs.
+     */
+    async getTotalLaborCost(startDate = '', endDate = '') {
+        console.log('SalesDB.js: getTotalLaborCost called with:', { startDate, endDate });
+        if ((startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) ||
+            (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate))) {
+            console.error('SalesDB.js: Invalid date format:', { startDate, endDate });
+            throw new Error('Invalid date format. Use YYYY-MM-DD.');
+        }
+        try {
+            const db = await this.getDB();
+            console.debug('SalesDB.js: Database connection established for getTotalLaborCost');
+            let query = `SELECT SUM(labor_cost) as total_labor FROM sales`;
+            const params = [];
+            if (startDate && endDate) {
+                query += ` WHERE date BETWEEN ? AND ?`;
+                params.push(startDate, endDate);
+            } else if (startDate) {
+                query += ` WHERE date >= ?`;
+                params.push(startDate);
+            } else if (endDate) {
+                query += ` WHERE date <= ?`;
+                params.push(endDate);
+            }
+            console.debug('SalesDB.js: Executing query:', query, 'with params:', params);
+            const result = db.exec(query, params);
+            const totalLabor = result[0].values[0][0] || 0;
+            console.log('SalesDB.js: getTotalLaborCost result:', totalLabor);
+            return totalLabor;
+        } catch (error) {
+            console.error('SalesDB.js: Error calculating total labor cost:', error.message, error.stack);
+            throw new Error(`Failed to calculate total labor cost: ${error.message}`);
+        }
+    }
+
+    /**
      * Retrieves sales with filters and pagination.
      * @param {Object} filters - Filters { startDate, endDate, clientSearch, saleType }.
      * @param {number} page - Page number (1-based).
@@ -685,9 +732,9 @@ class SalesDB extends Database {
             // Base query for sales
             let query = `
                 SELECT
-                    s.sale_id, s.date, s.subtotal, s.sale_discount_amount, s.delivery_price, s.total, s.paid, s.remaining, s.is_credit,
+                    s.sale_id, s.date, s.subtotal, s.sale_discount_amount, s.delivery_price, s.labor_cost, s.total, s.paid, s.remaining, s.is_credit,
                     c.name as client_name,
-                    (s.total - COALESCE(SUM(si.quantity * p.purchase_price), 0) + s.delivery_price) as profit,
+                    (s.total - COALESCE(SUM(si.quantity * p.purchase_price), 0) + s.delivery_price + s.labor_cost) as profit,
                     (s.sale_discount_amount + COALESCE(SUM(si.discount_amount), 0)) as total_discount
                 FROM sales s
                 LEFT JOIN clients c ON s.client_id = c.client_id

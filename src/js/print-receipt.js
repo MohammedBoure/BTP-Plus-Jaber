@@ -12,72 +12,85 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // دالة لإرسال النص إلى الطابعة
     async function sendToPrinter(receiptText) {
-        try {
-            console.log('print-receipt.js: إرسال النص إلى الطابعة');
-            console.log('print-receipt.js: نص الإيصال المرسل:', receiptText);
-            const payload = { message: receiptText }; // Changed from 'content' to 'message' to match Flask API
-            console.log('print-receipt.js: JSON المرسل:', JSON.stringify(payload, null, 2));
-            
-            const response = await fetch('http://127.0.0.1:5000/print', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json; charset=utf-8',
-                },
-                body: JSON.stringify(payload)
-            });
+        const ports = ['5000', '5001']; // قائمة البورتات للمحاولة
+        let lastError = null;
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('print-receipt.js: استجابة الخطأ من الخادم:', errorText);
-                throw new Error(`فشل الاتصال بخادم الطباعة: ${response.status} - ${errorText}`);
+        for (const port of ports) {
+            try {
+                console.log(`print-receipt.js: محاولة إرسال النص إلى الطابعة على البورت ${port}`);
+                console.log('print-receipt.js: نص الإيصال المرسل:', receiptText);
+                const payload = { message: receiptText };
+                console.log('print-receipt.js: JSON المرسل:', JSON.stringify(payload, null, 2));
+
+                const response = await fetch(`http://127.0.0.1:${port}/print`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`print-receipt.js: استجابة الخطأ من الخادم على البورت ${port}:`, errorText);
+                    throw new Error(`فشل الاتصال بخادم الطباعة على البورت ${port}: ${response.status} - ${errorText}`);
+                }
+
+                const result = await response.json();
+                console.log(`print-receipt.js: تم إرسال النص للطباعة بنجاح على البورت ${port}`, result);
+                alert(result.status || 'تم إرسال الإيصال للطباعة بنجاح');
+                return; // الخروج بعد نجاح الطباعة
+            } catch (error) {
+                console.error(`print-receipt.js: خطأ في الطباعة على البورت ${port}:`, error.message);
+                lastError = error;
             }
-
-            const result = await response.json();
-            console.log('print-receipt.js: تم إرسال النص للطباعة بنجاح', result);
-            alert(result.status || 'تم إرسال الإيصال للطباعة بنجاح');
-        } catch (error) {
-            console.error('print-receipt.js: خطأ في الطباعة:', error.message);
-            alert(`فشل الطباعة: ${error.message}`);
         }
+
+        // إذا فشلت كل المحاولات
+        console.error('print-receipt.js: فشلت كل محاولات الطباعة');
+        alert(`فشل الطباعة: ${lastError.message}`);
     }
 
     // دالة لتوليد نص الإيصال
     function generateReceiptText() {
-        console.log('print-receipt.js: Génération du texte du reçu');
+        console.log('print-receipt.js: توليد نص الإيصال');
 
-        // --- 1. Récupération des éléments du DOM ---
+        // --- 1. الوصول إلى عناصر DOM ---
         const selectClient = document.getElementById('clientSelect');
         const dateVente = document.getElementById('saleDate');
         const estCredit = document.getElementById('isCredit');
         const remiseVente = document.getElementById('saleDiscount');
         const fraisLivraison = document.getElementById('deliveryPrice');
+        const fraisTravail = document.getElementById('laborCost'); // حقل تكلفة العمال الجديد
         const corpsTableauArticles = document.getElementById('saleItemsTableBody');
         const affichageSousTotal = document.getElementById('subtotal');
         const affichageTotal = document.getElementById('total');
         const inputMontantPaye = document.getElementById('paidAmount');
         const affichageReste = document.getElementById('remaining');
 
-        if (!selectClient || !dateVente || !estCredit || !remiseVente || !fraisLivraison ||
-            !corpsTableauArticles || !affichageSousTotal || !affichageTotal ||
+        // --- 2. التحقق من وجود العناصر ---
+        if (!selectClient || !dateVente || !estCredit || !remiseVente || !fraisLivraison || 
+            !fraisTravail || !corpsTableauArticles || !affichageSousTotal || !affichageTotal || 
             !inputMontantPaye || !affichageReste) {
-            console.error('Un ou plusieurs éléments du DOM sont manquants.');
-            alert('Erreur : Un des éléments de la page est introuvable.');
+            console.error('print-receipt.js: أحد عناصر DOM أو أكثر غير موجود');
+            alert('خطأ: أحد عناصر الصفحة غير موجود.');
             return null;
         }
 
-        // --- 2. Extraction des données ---
-        const nomClient = selectClient.selectedOptions[0]?.textContent.split(' (')[0] || 'Vente au comptant';
+        // --- 3. استخراج البيانات ---
+        const nomClient = selectClient.selectedOptions[0]?.textContent.split(' (')[0] || 'بيع نقدي';
         const date = dateVente.value || new Date().toISOString().split('T')[0];
         const estCreditValeur = parseInt(estCredit.value) || 0;
         const remiseVenteValeur = parseFloat(remiseVente.value) || 0;
         const fraisLivraisonValeur = parseFloat(fraisLivraison.value) || 0;
+        const fraisTravailValeur = parseFloat(fraisTravail.value) || 0; // استخراج تكلفة العمال
         const sousTotal = parseFloat(affichageSousTotal.textContent) || 0;
         const total = parseFloat(affichageTotal.textContent) || 0;
         const montantPaye = parseFloat(inputMontantPaye.value) || 0;
         const resteAPayer = parseFloat(affichageReste.textContent) || 0;
 
         const articlesVendus = Array.from(corpsTableauArticles.children).map(row => ({
-            nomProduit: row.cells[0]?.textContent.trim() || 'Inconnu',
+            nomProduit: row.cells[0]?.textContent.trim() || 'غير معروف',
             quantite: parseFloat(row.cells[1]?.textContent) || 0,
             prixUnitaire: parseFloat(row.cells[2]?.textContent) || 0,
             remise: parseFloat(row.cells[3]?.textContent) || 0,
@@ -85,27 +98,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         if (articlesVendus.length === 0) {
-            console.error('Aucun article dans la vente.');
-            alert('Veuillez ajouter au moins un produit.');
+            console.error('print-receipt.js: لا توجد عناصر في المبيعات');
+            alert('يرجى إضافة منتج واحد على الأقل.');
             return null;
         }
 
-        // --- 3. Génération du reçu ---
+        // --- 4. توليد نص الإيصال ---
         const numeroRecu = `${date.replace(/-/g, '')}-001`;
         const ligneSeparatrice = '-'.repeat(40);
         let texteRecu = '';
 
         texteRecu += `${ligneSeparatrice}\n`;
-        texteRecu += `        Société Matériaux Idéale\n`;
-        texteRecu += ` Adresse: Jijel, Chekfa, Boughatene\n`;
-        texteRecu += `         Tél: 0558815453\n`;
-        texteRecu += `       N° Reçu: ${numeroRecu}\n`;
+        texteRecu += `        شركة المواد المثالية\n`;
+        texteRecu += ` العنوان: جيجل، شقفة، بوغاطن\n`;
+        texteRecu += `         الهاتف: 0558815453\n`;
+        texteRecu += `       رقم الإيصال: ${numeroRecu}\n`;
         texteRecu += `${ligneSeparatrice}\n`;
-        texteRecu += `Date: ${date}\n`;
-        texteRecu += `Client: ${nomClient}\n`;
-        texteRecu += `Vente: ${estCreditValeur ? 'Crédit' : 'Comptant'}\n`;
+        texteRecu += `التاريخ: ${date}\n`;
+        texteRecu += `العميل: ${nomClient}\n`;
+        texteRecu += `نوع البيع: ${estCreditValeur ? 'كريدي' : 'نقدي'}\n`;
         texteRecu += `${ligneSeparatrice}\n`;
-        texteRecu += `Produit          Qté  PU     Rem   Total\n`;
+        texteRecu += `المنتج          الكمية  سعر الوحدة  الخصم  الإجمالي\n`;
         texteRecu += `${ligneSeparatrice}\n`;
 
         articlesVendus.forEach(item => {
@@ -118,22 +131,24 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         texteRecu += `${ligneSeparatrice}\n`;
-        texteRecu += `Sous-total:         ${sousTotal.toFixed(2)} DA\n`;
+        texteRecu += `المجموع الفرعي:    ${sousTotal.toFixed(2)} د.ج\n`;
         if (remiseVenteValeur > 0)
-            texteRecu += `Remise:             ${remiseVenteValeur.toFixed(2)} DA\n`;
+            texteRecu += `الخصم:             ${remiseVenteValeur.toFixed(2)} د.ج\n`;
         if (fraisLivraisonValeur > 0)
-            texteRecu += `Livraison:          ${fraisLivraisonValeur.toFixed(2)} DA\n`;
-        texteRecu += `TOTAL:              ${total.toFixed(2)} DA\n`;
-        texteRecu += `Payé:               ${montantPaye.toFixed(2)} DA\n`;
+            texteRecu += `تكلفة التوصيل:     ${fraisLivraisonValeur.toFixed(2)} د.ج\n`;
+        if (fraisTravailValeur > 0)
+            texteRecu += `تكلفة العمال:      ${fraisTravailValeur.toFixed(2)} د.ج\n`;
+        texteRecu += `الإجمالي:           ${total.toFixed(2)} د.ج\n`;
+        texteRecu += `المدفوع:           ${montantPaye.toFixed(2)} د.ج\n`;
         if (estCreditValeur)
-            texteRecu += `Reste:              ${resteAPayer.toFixed(2)} DA\n`;
+            texteRecu += `المتبقي:           ${resteAPayer.toFixed(2)} د.ج\n`;
 
         texteRecu += `${ligneSeparatrice}\n`;
-        texteRecu += ` Merci pour votre confiance !\n`;
-        texteRecu += ` [Cachet de l'entreprise]\n`;
+        texteRecu += ` شكراً لثقتكم بنا !\n`;
+        texteRecu += ` [ختم الشركة]\n`;
         texteRecu += `${ligneSeparatrice}`;
 
-        console.log('Texte du reçu généré :\n', texteRecu);
+        console.log('print-receipt.js: نص الإيصال المولد:\n', texteRecu);
         return texteRecu;
     }
 

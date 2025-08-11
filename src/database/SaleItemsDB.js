@@ -290,13 +290,17 @@ class SaleItemsDB extends Database {
             const sale_id = itemToDelete.sale_id;
             console.debug(`SaleItemsDB.js: Recalculating totals for sale ${sale_id}.`);
 
-            // Get original sale-level discount and paid amount.
-            const saleDataStmt = db.prepare('SELECT sale_discount_amount, paid FROM sales WHERE sale_id = ?;', [sale_id]);
+            // Get original sale-level discount, delivery price, labor cost, and paid amount.
+            const saleDataStmt = db.prepare('SELECT sale_discount_amount, delivery_price, labor_cost, paid FROM sales WHERE sale_id = ?;', [sale_id]);
             let saleDiscount = 0;
+            let deliveryPrice = 0;
+            let laborCost = 0;
             let paidAmount = 0;
             if (saleDataStmt.step()) {
                 const saleData = saleDataStmt.getAsObject();
                 saleDiscount = saleData.sale_discount_amount;
+                deliveryPrice = saleData.delivery_price;
+                laborCost = saleData.labor_cost;
                 paidAmount = saleData.paid;
             }
             saleDataStmt.free();
@@ -317,10 +321,12 @@ class SaleItemsDB extends Database {
             if (totalsStmt.step()) {
                 const result = totalsStmt.getAsObject();
                 newSubtotal = result.new_subtotal || 0;
-                // The new total is the sum of remaining item totals.
+                // The new total is the sum of remaining item totals plus delivery price and labor cost, minus sale-level discount.
                 let newTotalFromItems = result.new_total || 0;
-                // Apply the overall sale discount to the new item total.
-                newTotal = newTotalFromItems - saleDiscount;
+                newTotal = newTotalFromItems - saleDiscount + deliveryPrice + laborCost;
+            } else {
+                // If no items remain, set subtotal and total to 0, but preserve delivery price and labor cost.
+                newTotal = deliveryPrice + laborCost - saleDiscount;
             }
             totalsStmt.free();
 

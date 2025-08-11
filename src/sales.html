@@ -50,12 +50,14 @@
         th:nth-child(4), td:nth-child(4) { width: 10%; } /* الإجمالي */
         th:nth-child(5), td:nth-child(5) { width: 10%; } /* خصم المبيعة */
         th:nth-child(6), td:nth-child(6) { width: 10%; } /* تكلفة التوصيل */
-        th:nth-child(7), td:nth-child(7) { width: 10%; } /* الفائدة */
-        th:nth-child(8), td:nth-child(8) { width: 10%; } /* المدفوع */
-        th:nth-child(9), td:nth-child(9) { width: 10%; } /* المتبقي */
-        th:nth-child(10), td:nth-child(10) { width: 8%; } /* النوع */
-        th:nth-child(11), td:nth-child(11) { width: 10%; } /* الإجراءات */
+        th:nth-child(7), td:nth-child(7) { width: 10%; } /* تكلفة العمال */
+        th:nth-child(8), td:nth-child(8) { width: 10%; } /* الفائدة */
+        th:nth-child(9), td:nth-child(9) { width: 10%; } /* المدفوع */
+        th:nth-child(10), td:nth-child(10) { width: 10%; } /* المتبقي */
+        th:nth-child(11), td:nth-child(11) { width: 8%; } /* النوع */
+        th:nth-child(12), td:nth-child(12) { width: 10%; } /* الإجراءات */
     </style>
+    <script src="js/loading_theme.js"></script>
 </head>
 <body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300">
     <div id="sidebar" class="fixed right-0 top-0 h-full bg-white dark:bg-gray-800 shadow-lg transition-all sidebar-expanded z-30 border-l border-gray-200 dark:border-gray-700">
@@ -169,6 +171,7 @@
                                 <th class="p-3 text-right">الإجمالي</th>
                                 <th class="p-3 text-right sensitive-header">خصم المبيعة</th>
                                 <th class="p-3 text-right">تكلفة التوصيل</th>
+                                <th class="p-3 text-right">تكلفة العمال</th>
                                 <th class="p-3 text-right sensitive-header">الفائدة</th>
                                 <th class="p-3 text-right">المدفوع</th>
                                 <th class="p-3 text-right">المتبقي</th>
@@ -233,12 +236,30 @@
         document.addEventListener("DOMContentLoaded", () => {
             document.documentElement.lang = "ar";
             document.documentElement.dir = "rtl";
+
+            // التحقق من الثيم المحفوظ أو تعيين الافتراضي إلى "light"
+            let savedTheme = localStorage.getItem("theme");
+            if (!savedTheme) {
+                savedTheme = "light"; // الافتراضي
+                localStorage.setItem("theme", savedTheme);
+            }
+
+            // تطبيق الثيم
+            if (savedTheme === "dark") {
+                document.documentElement.classList.add("dark");
+            } else {
+                document.documentElement.classList.remove("dark");
+            }
+
             const e = "sales.html";
-            document.querySelectorAll(".nav-item").forEach(t => { if (t.getAttribute("href") === e) t.classList.add("active"); });
+            document.querySelectorAll(".nav-item").forEach(t => {
+                if (t.getAttribute("href") === e) t.classList.add("active");
+            });
             document.body.style.visibility = "visible";
             document.body.style.opacity = "1";
             lucide.createIcons();
         });
+
         window.addEventListener("resize", handleResize);
     </script>
     <script type="module" src="js/sales.js"></script>

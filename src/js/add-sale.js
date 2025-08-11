@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isCredit = document.getElementById('isCredit');
     const saleDiscount = document.getElementById('saleDiscount');
     const deliveryPrice = document.getElementById('deliveryPrice');
+    const laborCost = document.getElementById('laborCost');
     const productSearch = document.getElementById('productSearch');
     const productSelect = document.getElementById('productSelect');
     const quantityInput = document.getElementById('quantity');
@@ -103,8 +104,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const totalItemDiscount = saleItems.reduce((sum, item) => sum + item.discountAmount, 0);
         const saleDiscountValue = parseFloat(saleDiscount.value) || 0;
         const deliveryPriceValue = parseFloat(deliveryPrice.value) || 0;
+        const laborCostValue = parseFloat(laborCost.value) || 0;
         const totalDiscount = totalItemDiscount + saleDiscountValue;
-        let total = subtotal - totalDiscount + deliveryPriceValue;
+        let total = subtotal - totalDiscount + deliveryPriceValue + laborCostValue;
         if (total < 0) total = 0; // منع الإجمالي من أن يكون سالبًا
 
         // إضافة: تحديث المبلغ المدفوع بناءً على نوع البيع
@@ -127,6 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             totalItemDiscount,
             saleDiscountValue,
             deliveryPriceValue,
+            laborCostValue,
             totalDiscount,
             total,
             paid,
@@ -158,7 +161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
         row.querySelector('.remove-item').addEventListener('click', () => {
             console.log('add-sale.js: إزالة عنصر:', item.productId);
-            saleItems = saleItems.filter(i => i.productId === item.productId);
+            saleItems = saleItems.filter(i => i.productId !== item.productId);
             row.remove();
             updateSummary();
         });
@@ -268,6 +271,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('add-sale.js: تغيير تكلفة التوصيل:', deliveryPrice.value);
         updateSummary();
     });
+    laborCost.addEventListener('input', () => {
+        console.log('add-sale.js: تغيير سعر العامل:', laborCost.value);
+        updateSummary();
+    });
     paidAmountInput.addEventListener('input', () => {
         console.log('add-sale.js: تغيير المبلغ المدفوع:', paidAmountInput.value);
         updateSummary();
@@ -288,9 +295,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isCreditValue = parseInt(isCredit.value);
         const saleDiscountValue = parseFloat(saleDiscount.value) || 0;
         const deliveryPriceValue = parseFloat(deliveryPrice.value) || 0;
+        const laborCostValue = parseFloat(laborCost.value) || 0;
         const subtotal = saleItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
         const totalDiscount = saleItems.reduce((sum, item) => sum + item.discountAmount, 0) + saleDiscountValue;
-        const total = subtotal - totalDiscount + deliveryPriceValue;
+        const total = subtotal - totalDiscount + deliveryPriceValue + laborCostValue;
         const paid = parseFloat(paidAmountInput.value) || 0;
         const remaining = total - paid;
 
@@ -300,6 +308,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             isCreditValue,
             saleDiscountValue,
             deliveryPriceValue,
+            laborCostValue,
             subtotal,
             totalDiscount,
             total,
@@ -315,12 +324,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        if (total < 0 || paid < 0 || saleDiscountValue < 0 || deliveryPriceValue < 0) {
-            console.error('add-sale.js: قيم مالية غير صالحة:', { total, paid, saleDiscountValue, deliveryPriceValue });
+        if (total < 0 || paid < 0 || saleDiscountValue < 0 || deliveryPriceValue < 0 || laborCostValue < 0) {
+            console.error('add-sale.js: قيم مالية غير صالحة:', { total, paid, saleDiscountValue, deliveryPriceValue, laborCostValue });
             alert('القيم المالية يجب ألا تكون سالبة.');
             return;
         }
-        
+
         if (isCreditValue === 0 && Math.abs(paid - total) > 0.001) { // Use a small tolerance for float comparison
             console.error('add-sale.js: البيع النقدي يتطلب الدفع الكامل:', { paid, total });
             alert('البيع النقدي يتطلب دفع المبلغ الإجمالي.');
@@ -361,19 +370,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                     subtotal,
                     sale_discount_amount: saleDiscountValue,
                     delivery_price: deliveryPriceValue,
+                    labor_cost: laborCostValue,
                     total,
                     paid,
                     remaining,
                     is_credit: isCreditValue
                 };
                 console.log('add-sale.js: إضافة المبيعة مباشرة:', sale);
-                
+
                 // تنفيذ استعلام إضافة المبيعة
-                const saleParams = [clientId || null, date, subtotal, saleDiscountValue, deliveryPriceValue, total, paid, remaining, isCreditValue ? 1 : 0];
+                const saleParams = [clientId || null, date, subtotal, saleDiscountValue, deliveryPriceValue, laborCostValue, total, paid, remaining, isCreditValue ? 1 : 0];
                 console.log('add-sale.js: تنفيذ استعلام إضافة المبيعة مع المعلمات:', saleParams);
                 const saleStmt = dbInstance.prepare(
-                    `INSERT INTO sales (client_id, date, subtotal, sale_discount_amount, delivery_price, total, paid, remaining, is_credit) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+                    `INSERT INTO sales (client_id, date, subtotal, sale_discount_amount, delivery_price, labor_cost, total, paid, remaining, is_credit) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
                     saleParams
                 );
                 saleStmt.run();
