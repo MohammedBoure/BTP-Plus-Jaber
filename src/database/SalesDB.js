@@ -206,7 +206,9 @@ class SalesDB extends Database {
                 SELECT
                     s.sale_id, s.date, s.subtotal, s.sale_discount_amount, s.delivery_price, s.labor_cost, s.total, s.paid, s.remaining, s.is_credit,
                     c.name as client_name,
-                    (s.total - COALESCE(SUM(si.quantity * p.purchase_price), 0) + s.delivery_price) as profit,
+                    (COALESCE(SUM(si.quantity * si.unit_price), 0)
+                        - COALESCE(SUM(si.quantity * p.purchase_price), 0)
+                        + s.delivery_price) as profit,
                     (s.sale_discount_amount + COALESCE(SUM(si.discount_amount), 0)) as total_discount
                 FROM sales s
                 LEFT JOIN clients c ON s.client_id = c.client_id

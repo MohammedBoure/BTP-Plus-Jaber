@@ -175,7 +175,7 @@ class SaleItemsDB extends Database {
             const db = await this.getDB();
             console.debug('SaleItemsDB.js: Database connection established for getTopSoldItemsWithDateRange');
             let query = `
-                SELECT p.product_id, p.name as product_name, SUM(si.total_price) as total_revenue
+                SELECT p.product_id, p.name as product_name, SUM(si.quantity) as total_quantity, SUM(si.total_price) as total_revenue
                 FROM sale_items si
                 JOIN products p ON si.product_id = p.product_id
                 JOIN sales s ON si.sale_id = s.sale_id
@@ -198,7 +198,8 @@ class SaleItemsDB extends Database {
             const topItems = result[0]?.values.map(row => ({
                 product_id: row[0],
                 product_name: row[1],
-                total_revenue: row[2]
+                total_quantity: row[2],
+                total_revenue: row[3]
             })) || [];
             console.log('SaleItemsDB.js: getTopSoldItemsWithDateRange result:', topItems);
             return topItems;

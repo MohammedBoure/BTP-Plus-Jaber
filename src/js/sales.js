@@ -68,8 +68,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             longhand: ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"]
         },
         months: {
-            shorthand: ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"],
-            longhand: ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
+            shorthand: ["جانفي", "فيفري", "مارس", "أفريل", "ماي", "جوان", "جويلية", "أوت", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"],
+            longhand: ["جانفي", "فيفري", "مارس", "أفريل", "ماي", "جوان", "جويلية", "أوت", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
         },
         firstDayOfWeek: 1,
         rangeSeparator: " إلى ",
@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // Set default date range to last 30 days
-    const today = new Date('2025-08-11');
+    const today = new Date();
     const endDate = today.toISOString().split('T')[0];
     const startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     startDateInput.value = startDate;
