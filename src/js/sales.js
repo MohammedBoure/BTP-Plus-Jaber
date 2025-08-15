@@ -173,7 +173,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 
                 console.log(`تم الإرسال بنجاح إلى الطابعة على المنفذ ${port}`, result);
-                alert(result.status || 'تم إرسال الإيصال للطباعة بنجاح');
                 return;
 
             } catch (error) {

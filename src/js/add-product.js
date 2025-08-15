@@ -62,11 +62,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (isEditMode) {
                 // تحديث المنتج الحالي
                 await productsDB.updateProduct(productId, productData);
-                alert('تم تحديث المنتج بنجاح!');
             } else {
                 // إضافة منتج جديد
                 await productsDB.addProduct(productData);
-                alert('تمت إضافة المنتج بنجاح!');
             }
             window.location.href = 'products.html'; // العودة إلى صفحة المنتجات
         } catch (error) {

@@ -61,10 +61,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (isEditMode) {
                 await clientsDB.updateClient(clientId, clientData);
-                alert('تم تحديث بيانات العميل بنجاح.');
             } else {
                 await clientsDB.addClient(clientData);
-                alert('تمت إضافة العميل بنجاح.');
             }
             window.location.href = 'clients.html';
         } catch (error) {

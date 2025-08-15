@@ -33,7 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 console.log(`print-receipt.js: تم الإرسال بنجاح على البورت ${port}`, result);
-                alert(result.status || 'تم إرسال الإيصال للطباعة بنجاح');
                 return; // الخروج بعد نجاح الطباعة
 
             } catch (error) {

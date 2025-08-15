@@ -18,7 +18,6 @@ loginBtn.addEventListener('click', () => {
     if (redirectURL) {
       window.location.href = redirectURL;
     } else {
-      alert("تم تسجيل الدخول بنجاح.");
     }
   } else {
     alert('كلمة المرور غير صحيحة. حاول مرة أخرى.');

@@ -1,4 +1,1 @@
-fix(receipts): correct thermal printer output and add print button for past sales
-
-- Fixed code to ensure proper formatting when printing receipts on the thermal printer.
-- Added a print button for each past sale to allow individual receipt printing.
+chore: remove all annoying alerts

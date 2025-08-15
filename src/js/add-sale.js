@@ -473,7 +473,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await db.save();
                 console.log('add-sale.js: تم حفظ قاعدة البيانات في IndexedDB');
 
-                alert('تم إضافة البيع بنجاح!');
                 window.location.href = 'sales.html';
             } catch (error) {
                 dbInstance.run('ROLLBACK;');
