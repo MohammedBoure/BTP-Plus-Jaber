@@ -1,1 +1,12 @@
-chore: remove all annoying alerts
+feat(service): add printer_api.py and setup as Windows service
+
+- Added new module `printer_api.py` for printer-related functionality
+- Built executable from Python source using PyInstaller with `--noconsole` and `--onedir` for Windows 10 compatibility
+- Included detailed documentation for running the executable as a Windows Service via NSSM:
+  1. Build the exe:
+     pyinstaller --noconsole --onedir printer_api.py
+  2. Install NSSM and open admin CMD
+  3. Run: nssm install PrinterService "C:\path\to\dist\printer_api\printer_api.exe"
+  4. Set Startup directory to the exe folder
+  5. Start the service: net start PrinterService
+- Ensured the executable runs headless without console window
