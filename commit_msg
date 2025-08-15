@@ -1,1 +1,4 @@
-fix: correct interest rate display in 'W' page and fix data display issues on homepage
+fix(receipts): correct thermal printer output and add print button for past sales
+
+- Fixed code to ensure proper formatting when printing receipts on the thermal printer.
+- Added a print button for each past sale to allow individual receipt printing.

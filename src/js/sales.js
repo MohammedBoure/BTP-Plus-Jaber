@@ -147,6 +147,87 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     toggleSensitiveButton.addEventListener('click', toggleSensitiveInfo);
 
+    // Print receipt functionality
+    async function sendToPrinter(receiptData) {
+        const ports = ['5000', '5001'];
+        let lastError = null;
+
+        for (const port of ports) {
+            try {
+                console.log(`إرسال البيانات إلى خادم الطباعة على المنفذ ${port}`);
+                console.log('البيانات المرسلة:', JSON.stringify(receiptData, null, 2));
+
+                const response = await fetch(`http://127.0.0.1:${port}/print`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8',
+                    },
+                    body: JSON.stringify(receiptData)
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    console.error(`استجابة خطأ من الخادم على المنفذ ${port}:`, result.error);
+                    throw new Error(result.error || `فشل الاتصال بخادم الطباعة على المنفذ ${port}`);
+                }
+                
+                console.log(`تم الإرسال بنجاح إلى الطابعة على المنفذ ${port}`, result);
+                alert(result.status || 'تم إرسال الإيصال للطباعة بنجاح');
+                return;
+
+            } catch (error) {
+                console.error(`خطأ في الطباعة على المنفذ ${port}:`, error.message);
+                lastError = error;
+            }
+        }
+
+        console.error('فشلت كل محاولات الطباعة');
+        alert(`فشل الطباعة: تأكد من أن برنامج الطباعة يعمل. الخطأ: ${lastError.message}`);
+    }
+
+    function generateReceiptData(sale, saleItems) {
+        console.log('توليد بيانات الإيصال');
+
+        const now = new Date();
+        const formatTimestamp = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        };
+
+        const preciseTimestamp = formatTimestamp(now);
+        const saleDateForReceiptNumber = sale.date.replace(/-/g, '');
+
+        const receiptData = {
+            numeroRecu: `${saleDateForReceiptNumber}-${sale.sale_id}`,
+            transactionTimestamp: preciseTimestamp,
+            nomClient: sale.client_name || 'بيع نقدي',
+            estCredit: sale.is_credit,
+            articlesVendus: saleItems.map(item => ({
+                nomProduit: item.product_name || 'غير معروف',
+                quantite: item.quantity || 0,
+                prixUnitaire: item.unit_price || 0,
+                remise: item.discount_amount || 0,
+                total: item.total_price || 0
+            })),
+            sousTotal: sale.subtotal || 0,
+            remiseVente: sale.sale_discount_amount || 0,
+            fraisLivraison: sale.delivery_price || 0,
+            fraisTravail: sale.labor_cost || 0,
+            total: sale.total || 0,
+            montantPaye: sale.paid || 0,
+            resteAPayer: sale.remaining || 0,
+        };
+
+        console.log('بيانات الإيصال المولدة:', receiptData);
+        return receiptData;
+    }
+
     async function loadSales(page = 1) {
         try {
             const startDate = startDateInput.value;
@@ -156,10 +237,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
             if (startDate && !dateRegex.test(startDate)) {
-                throw new Error('Invalid start date format. Use YYYY-MM-DD.');
+                throw new Error('تنسيق تاريخ البداية غير صالح. استخدم YYYY-MM-DD.');
             }
             if (endDate && !dateRegex.test(endDate)) {
-                throw new Error('Invalid end date format. Use YYYY-MM-DD.');
+                throw new Error('تنسيق تاريخ النهاية غير صالح. استخدم YYYY-MM-DD.');
             }
 
             let sales = await salesDB.getAllSales(startDate, endDate);
@@ -178,7 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderPage(page);
 
         } catch (error) {
-            console.error('Error loading sales:', error);
+            console.error('خطأ في تحميل المبيعات:', error);
             salesTableBody.innerHTML = `<tr><td colspan="${isAdmin || sensitiveInfoVisible ? 12 : 9}" class="text-center p-4 text-danger">فشل تحميل المبيعات: ${error.message}</td></tr>`;
         }
     }
@@ -241,7 +322,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function showSaleDetails(saleId) {
         try {
             const sale = currentSales.find(s => s.sale_id === saleId);
-            if (!sale) throw new Error('Sale not found');
+            if (!sale) throw new Error('البيع غير موجود');
 
             // Populate sale summary
             const sensitiveClass = (isAdmin || sensitiveInfoVisible) ? 'sensitive-column visible' : 'sensitive-column';
@@ -267,7 +348,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <p class="text-lg font-bold text-gray-800 dark:text-white">${sale.subtotal.toFixed(2)}</p>
                 </div>
                 <div class="text-center p-3 bg-yellow-100 dark:bg-yellow-900/50 rounded-lg ${sensitiveClass}">
-                    <label class="block text-sm text-yellow-600 dark:text-yellow-400">خصم المبيعة</label>
+                    <label class="block text-sm text-yellow-600 dark:text-yellow-400">خصم المبيعات</label>
                     <p class="text-lg font-bold text-warning dark:text-yellow-400">${(sale.sale_discount_amount || 0).toFixed(2)}</p>
                 </div>
                 <div class="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
@@ -275,7 +356,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <p class="text-lg font-bold text-gray-800 dark:text-white">${(sale.delivery_price || 0).toFixed(2)}</p>
                 </div>
                 <div class="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                    <label class="block text-sm text-gray-600 dark:text-gray-400">تكلفة العمال</label>
+                    <label class="block text-sm text-gray-600 dark:text-gray-400">تكلفة العمالة</label>
                     <p class="text-lg font-bold text-gray-800 dark:text-white">${(sale.labor_cost || 0).toFixed(2)}</p>
                 </div>
                 <div class="text-center p-3 bg-green-100 dark:bg-green-900/50 rounded-lg">
@@ -287,8 +368,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <p class="text-lg font-bold text-danger dark:text-red-400">${sale.remaining.toFixed(2)}</p>
                 </div>
                 <div class="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg ${sensitiveClass}">
-                    <label class="block text-sm text-gray-600 dark:text-gray-400">الفائدة</label>
+                    <label class="block text-sm text-gray-600 dark:text-gray-400">الربح</label>
                     <p class="text-lg font-bold ${(sale.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-danger')}">${(sale.profit || 0).toFixed(2)}</p>
+                </div>
+                <div class="text-center p-3">
+                    <button id="printReceipt" class="p-2 rounded-md text-white bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 transition-colors" title="طباعة الإيصال">
+                        <i data-lucide="printer" class="w-4 h-4 inline-block mr-1"></i>طباعة
+                    </button>
                 </div>
             `;
 
@@ -318,9 +404,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             saleDetailsModal.classList.remove('invisible', 'opacity-0');
             saleDetailsModal.classList.add('visible', 'opacity-100');
 
+            // Add event listener for print button
+            const printButton = document.getElementById('printReceipt');
+            if (printButton) {
+                printButton.addEventListener('click', () => {
+                    console.log('النقر على زر الطباعة');
+                    const receiptData = generateReceiptData(sale, saleItems);
+                    if (receiptData) {
+                        sendToPrinter(receiptData);
+                    }
+                });
+            }
+
             lucide.createIcons();
         } catch (error) {
-            console.error('Error loading sale details:', error);
+            console.error('خطأ في تحميل تفاصيل البيع:', error);
             alert('فشل تحميل تفاصيل البيع: ' + error.message);
         }
     }
@@ -331,7 +429,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             await salesDB.deleteSale(saleId); 
             await loadSales(currentPage); 
         } catch (error) { 
-            console.error('Error deleting sale:', error); 
+            console.error('خطأ في حذف البيع:', error); 
             alert('فشل حذف البيع: ' + error.message); 
         } 
     }
@@ -344,7 +442,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             await loadSales(currentPage); 
             if (saleId) await showSaleDetails(saleId); 
         } catch (error) { 
-            console.error('Error deleting item:', error); 
+            console.error('خطأ في حذف العنصر:', error); 
             alert('فشل حذف العنصر: ' + error.message); 
         } 
     }
