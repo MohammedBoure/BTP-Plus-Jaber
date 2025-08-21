@@ -4,6 +4,51 @@ import Database from './Database.js';
  * Manages sale items in the database, extending the base Database class.
  */
 class SaleItemsDB extends Database {
+
+    /**
+     * Retrieves sale items for a specific sale.
+     * @param {number} sale_id - The ID of the sale.
+     * @returns {Promise<Array<Object>>} Array of sale items with product details.
+     * @throws {Error} If sale_id is invalid or database error occurs.
+     */
+    async getSaleItemsBySale(sale_id) {
+        // **التحسين:** إضافة رسائل تسجيل أكثر وضوحًا
+        console.log('SaleItemsDB.js: getSaleItemsBySale called with sale_id:', sale_id, 'type:', typeof sale_id);
+
+        if (!Number.isInteger(sale_id) || sale_id <= 0) {
+            console.error('SaleItemsDB.js: Invalid sale_id provided. Must be a positive integer.', sale_id);
+            throw new Error('Invalid sale_id provided.');
+        }
+
+        try { // **التحسين:** إضافة try...catch حول العملية بأكملها
+            const db = await this.getDB();
+            const query = `
+                SELECT 
+                    si.sale_item_id, si.sale_id, si.product_id, si.quantity, si.unit_price, 
+                    si.discount_amount, si.total_price,
+                    p.name as product_name,
+                    (si.total_price - (si.quantity * COALESCE(p.purchase_price, 0))) as item_profit
+                FROM sale_items si
+                LEFT JOIN products p ON si.product_id = p.product_id
+                WHERE si.sale_id = ?
+                ORDER BY p.name;
+            `;
+            const stmt = db.prepare(query, [sale_id]);
+            const items = [];
+            while (stmt.step()) {
+                items.push(stmt.getAsObject());
+            }
+            stmt.free();
+            console.log(`SaleItemsDB.js: Found ${items.length} items for sale_id ${sale_id}`);
+            return items;
+        } catch (error) {
+            console.error(`SaleItemsDB.js: Error fetching items for sale_id ${sale_id}:`, error);
+            // إعادة رمي الخطأ ليتم التقاطه في الواجهة الأمامية
+            throw error; 
+        }
+    }
+
+
     /**
      * Adds multiple sale items in a single transaction and updates product stock.
      * @param {number} sale_id - The ID of the sale.

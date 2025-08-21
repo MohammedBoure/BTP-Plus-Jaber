@@ -153,6 +153,63 @@ class ClientsDB extends Database {
         );
         await this.save();
     }
+
+    /**
+     * Settles all outstanding debts for a client by creating a new payment.
+     * @param {number} client_id - The ID of the client.
+     * @param {PaymentsDB} paymentsDB - An instance of PaymentsDB.
+     * @returns {Promise<void>}
+     */
+    async settleClientDebts(client_id, paymentsDB) {
+        console.log('ClientsDB.js: settleClientDebts called for client_id:', client_id);
+        const id = Number(client_id);
+        if (!Number.isInteger(id) || id <= 0) {
+            throw new Error('Invalid client_id provided.');
+        }
+
+        const db = await this.getDB();
+        try {
+            // Step 1: Calculate the total remaining amount for the client.
+            const totalRemainingStmt = db.prepare(
+                `SELECT SUM(remaining) as total_debt 
+                 FROM sales 
+                 WHERE client_id = ? AND is_credit = 1 AND remaining > 0;`,
+                [id]
+            );
+
+            let totalDebt = 0;
+            if (totalRemainingStmt.step()) {
+                totalDebt = totalRemainingStmt.getAsObject().total_debt || 0;
+            }
+            totalRemainingStmt.free();
+
+            if (totalDebt <= 0) {
+                console.log(`ClientsDB.js: Client ${id} has no outstanding debt to settle.`);
+                // لا يوجد دين لتسويته، يمكننا ببساطة الخروج.
+                return;
+            }
+
+            console.log(`ClientsDB.js: Total debt for client ${id} is ${totalDebt}. Creating settlement payment.`);
+
+            // Step 2: Create a new payment object for the settlement.
+            const settlementPayment = {
+                client_id: id,
+                date: new Date().toISOString().split('T')[0], // Use today's date
+                amount: totalDebt,
+                notes: 'تسوية كاملة للديون'
+            };
+
+            // Step 3: Add the payment using PaymentsDB.
+            // addPayment will automatically handle updating the sales records.
+            await paymentsDB.addPayment(settlementPayment);
+
+            console.log(`ClientsDB.js: Successfully created settlement payment for client ${id}.`);
+
+        } catch (error) {
+            console.error(`ClientsDB.js: Error settling debts for client ${id}:`, error.message, error.stack);
+            throw error; // Re-throw the error to be caught by the UI
+        }
+    }
 }
 
 export default ClientsDB;

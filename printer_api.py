@@ -80,8 +80,8 @@ def print_receipt(data):
             hDC.SetTextAlign(win32con.TA_RIGHT)
             y_pos += y_offset
 
-        company_name = data.get('companyName', 'بيع مواد البناء الخام')
-        company_info = data.get('companyInfo', ["العنوان: جيجل، شقفة، بوغطن", "الهاتف: 0660091466"])
+        company_name = data.get('companyName', 'مؤسسة بوطويل لبيع مواد البناء')
+        company_info = data.get('companyInfo', ["العنوان: جيجل، الشقفة، مزوارة", "الهاتف: 0660091466"])
 
         # --- رأس الفاتورة ---
         draw_centered_text(company_name, fonts["title"])

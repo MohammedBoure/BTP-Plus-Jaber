@@ -1,88 +1,52 @@
 <!DOCTYPE html>
-<!-- The `dir` and `lang` attributes will now be set by JavaScript on load -->
-<html>
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مدير الأعمال - الزبائن</title>
     <link rel="manifest" href="/manifest.json">
     <script src="js/script.js"></script>
-    <title>مدير الأعمال - الزبائن</title>
-    <!-- Tailwind CSS -->
-    <script>
-        const isAuthenticated = localStorage.getItem('isAuthenticated');
-        if (isAuthenticated === 'true') {
-            // Keep the authentication state as true
-            localStorage.setItem('isAuthenticated', 'false');
-        } else if (isAuthenticated === null || isAuthenticated === 'false') {
-            if (isAuthenticated ==='false') {
-                // Redirect to auth.html with current page URL
-                const currentURL = window.location.href;
-                const authURL = `auth.html?redirect=${encodeURIComponent(currentURL)}`;
-                window.location.href = authURL;
-            }
-        }
-    </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- SQL.js -->
     <script src="/libs/sql.js/sql-wasm.js"></script>
+    <script src="/libs/lucide/lucide.min.js"></script>
     <script>
-        // FIX: Consistent theme configuration with class-based dark mode
         tailwind.config = {
-            darkMode: 'class', 
+            darkMode: 'class',
             theme: {
                 extend: {
-                    colors: {
-                        primary: '#1E3A8A', // Blue
-                        secondary: '#F3F4F6', // Light Gray
-                        success: '#10B981', // Green
-                        warning: '#F59E0B', // Orange
-                        danger: '#EF4444',   // Red
-                    },
-                    fontFamily: {
-                        'inter': ['Inter', 'Noto Sans Arabic', 'sans-serif'],
-                    }
+                    colors: { primary: '#1E3A8A', success: '#10B981', warning: '#F59E0B', danger: '#EF4444' },
+                    fontFamily: { 'inter': ['Inter', 'Noto Sans Arabic', 'sans-serif'] }
                 }
             }
         }
     </script>
     <style>
-        /* Custom styles */
         body { font-family: 'Inter', 'Noto Sans Arabic', 'sans-serif'; }
         .transition-all { transition: all 0.3s ease; }
-        .hover-scale:hover { transform: scale(1.02); }
-
-        /* FIX: New, cleaner sidebar CSS. Logic is handled by classes. */
         .sidebar-expanded { width: 16rem; }
         .sidebar-collapsed { width: 4rem; }
-        
-        /* Smoothly hide text when sidebar is collapsed */
-        .sidebar-collapsed .nav-text,
-        .sidebar-collapsed #logo-text {
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.1s;
-        }
-
-        /* Classes to control main content margin */
+        .sidebar-collapsed .nav-text, .sidebar-collapsed #logo-text { opacity: 0; visibility: hidden; transition: opacity 0.1s; }
         .main-content-expanded { margin-right: 16rem; }
         .main-content-collapsed { margin-right: 4rem; }
-        /* LTR support if needed in the future */
         [dir="ltr"] .main-content-expanded { margin-left: 16rem; margin-right: 0; }
         [dir="ltr"] .main-content-collapsed { margin-left: 4rem; margin-right: 0; }
-
-        /* Style for the active nav link */
-        .nav-item.active {
-            background-color: #1E3A8A;
-            color: white;
+        .nav-item.active { background-color: #1E3A8A; color: white; }
+        .dark .nav-item.active { background-color: #1E3A8A; }
+        .nav-item.active svg { color: white; }
+        body { visibility: hidden; opacity: 0; transition: opacity 0.4s ease-in-out; }
+        .modal { transition: opacity 0.3s ease, visibility 0.3s ease; }
+        .filter-btn.active { background-color: #1E3A8A; color: white; border-color: #1E3A8A; }
+        .dark .filter-btn.active { background-color: #3B82F6; border-color: #3B82F6;}
+        
+        .full-width-table-container {
+            display: flex;
+            flex-direction: column;
         }
-        .dark .nav-item.active {
-             background-color: #1E3A8A;
-        }
-        .nav-item.active svg {
-            color: white;
+        .full-width-table-container table {
+            flex-grow: 1;
+            width: 100%;
         }
     </style>
     <script src="js/loading_theme.js"></script>
@@ -98,52 +62,47 @@
                 <span id="logo-text" class="font-bold text-lg text-gray-900 dark:text-white transition-opacity">مدير الأعمال</span>
             </div>
         </div>
-        
-        <!-- FIX: Added the full navigation menu -->
         <nav class="mt-6">
             <a href="index.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/></svg>
+                <i data-lucide="layout-dashboard" class="w-5 h-5 flex-shrink-0"></i>
                 <span class="nav-text mr-3 transition-opacity">لوحة التحكم</span>
             </a>
             <a href="products.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zM1 15a1 1 0 011-1h6a1 1 0 110 2H2a1 1 0 01-1-1zm10-2a4 4 0 004 4h1a1 1 0 100-2h-1a2 2 0 01-2-2V9a1 1 0 10-2 0v4z"/></svg>
+                <i data-lucide="package" class="w-5 h-5 flex-shrink-0"></i>
                 <span class="nav-text mr-3 transition-opacity">المنتجات</span>
             </a>
             <a href="clients.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+                <i data-lucide="users" class="w-5 h-5 flex-shrink-0"></i>
                 <span class="nav-text mr-3 transition-opacity">الزبائن</span>
             </a>
             <a href="sales.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/></svg>
+                <i data-lucide="shopping-cart" class="w-5 h-5 flex-shrink-0"></i>
                 <span class="nav-text mr-3 transition-opacity">المبيعات</span>
             </a>
             <a href="payments.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zM14 6a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h8zM6 10a2 2 0 012-2 2 2 0 012 2 2 2 0 01-2 2 2 2 0 01-2-2z"/></svg>
+                <i data-lucide="credit-card" class="w-5 h-5 flex-shrink-0"></i>
                 <span class="nav-text mr-3 transition-opacity">المدفوعات</span>
             </a>
             <a href="settings.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"/></svg>
+                <i data-lucide="settings" class="w-5 h-5 flex-shrink-0"></i>
                 <span class="nav-text mr-3 transition-opacity">الإعدادات</span>
             </a>
         </nav>
     </div>
 
     <!-- Main Content -->
-    <!-- FIX: Removed inline style, now controlled by classes. Added `main-content-expanded` initially. -->
     <div id="main-content" class="flex flex-col h-screen transition-all main-content-expanded">
         <!-- Header -->
         <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between flex-shrink-0">
             <div class="flex items-center space-x-4">
-                <button onclick="toggleSidebar()" class="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"/></svg>
+                <button id="toggle-sidebar-btn" class="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span id="toggle-icon"><i data-lucide="panel-left-close"></i></span>
                 </button>
-                <h1 id="page-title" class="text-2xl font-semibold text-gray-900 dark:text-white">إدارة الزبائن</h1>
+                <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">إدارة الزبائن</h1>
             </div>
-            
             <div class="flex items-center space-x-4">
-                <button onclick="toggleTheme()" class="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    <svg id="theme-icon-light" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zM17 11a1 1 0 100-2H9a1 1 0 100 2h8zm-8 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
-                    <svg id="theme-icon-dark" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
+                <button id="toggleTheme" class="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <i data-lucide="moon" class="w-4 h-4"></i>
                 </button>
                 <div class="flex items-center space-x-2">
                     <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
@@ -155,117 +114,137 @@
         </header>
 
         <!-- Page Content -->
-        <main class="flex-1 p-6 bg-gray-50 dark:bg-gray-950 overflow-y-auto">
-            <div class="flex justify-between items-center mb-6">
-                <p class="text-gray-600 dark:text-gray-400">إدارة قائمة الزبائن والديون الخاصة بهم.</p>
-                <a href="add-client.html" class="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
-                    <span>إضافة عميل</span>
-                </a>
-            </div>
-            
-            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
-                <label for="clientSearch" class="sr-only">بحث</label>
-                <input type="text" id="clientSearch" placeholder="ابحث عن الزبائن بالاسم أو الهاتف..." 
-                       class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-            </div>
+        <main class="flex-1 p-6 overflow-auto">
+            <div class="space-y-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold text-gray-800 dark:text-white">قائمة الزبائن</h2>
+                    <a href="add-client.html" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <span>إضافة عميل</span>
+                    </a>
+                </div>
 
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-x-auto">
-                <table class="w-full text-sm text-right text-gray-600 dark:text-gray-400">
-                    <thead class="text-sm text-gray-700 dark:text-gray-300 uppercase bg-gray-100 dark:bg-gray-700">
-                        <tr>
-                            <th scope="col" class="px-6 py-3">اسم العميل</th>
-                            <th scope="col" class="px-6 py-3">رقم الهاتف</th>
-                            <th scope="col" class="px-6 py-3">عميل منتظم</th>
-                            <th scope="col" class="px-6 py-3">الكريدي</th>
-                            <th scope="col" class="px-6 py-3 text-left">الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="clientsTableBody">
-                    </tbody>
-                </table>
+                <!-- Filters -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="relative flex-grow">
+                            <i data-lucide="search" class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"></i>
+                            <input type="text" id="clientSearch" placeholder="ابحث عن الزبائن بالاسم أو الهاتف..." class="w-full p-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                        </div>
+                        <div id="clientFilters" class="flex items-center gap-2 flex-shrink-0">
+                            <button data-filter="all" class="filter-btn active px-4 py-2 text-sm font-medium border rounded-lg transition-colors flex items-center gap-2"><i data-lucide="users" class="w-4 h-4"></i>كل الزبائن</button>
+                            <button data-filter="debt" class="filter-btn px-4 py-2 text-sm font-medium border rounded-lg transition-colors flex items-center gap-2"><i data-lucide="circle-dollar-sign" class="w-4 h-4"></i>عليهم ديون</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Clients Table -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-x-auto full-width-table-container">
+                    <table class="w-full text-sm text-gray-600 dark:text-gray-400">
+                        <thead class="text-sm text-gray-700 dark:text-gray-300 uppercase bg-gray-100 dark:bg-gray-700">
+                            <tr>
+                                <th class="p-3 text-right">اسم العميل</th>
+                                <th class="p-3 text-right">رقم الهاتف</th>
+                                <th class="p-3 text-right">عميل منتظم</th>
+                                <th class="p-3 text-right">الكريدي</th>
+                                <th class="p-3 text-center">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientsTableBody" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
+                    </table>
+                </div>
             </div>
         </main>
     </div>
 
-    <!-- JavaScript -->
+    <!-- Modals -->
+    <!-- Debts Modal -->
+    <div id="debtsModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 invisible opacity-0 modal z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <header class="flex justify-between items-center p-4 border-b dark:border-gray-700 flex-shrink-0">
+                <h2 class="text-xl font-bold text-gray-800 dark:text-white" id="debtsModalTitle">ديون العميل</h2>
+                <button id="closeDebtsModal" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </header>
+            <main id="debtsModalBody" class="p-6 overflow-y-auto"></main>
+            <footer id="debtsModalFooter" class="p-4 border-t dark:border-gray-700 flex-shrink-0 flex justify-end"></footer>
+        </div>
+    </div>
+    
+    <!-- Sale Details Modal (Nested) -->
+    <div id="saleDetailsModal" class="fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 invisible opacity-0 modal z-[60]">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <header class="flex justify-between items-center p-4 border-b dark:border-gray-700 flex-shrink-0">
+                <h2 class="text-xl font-bold text-gray-800 dark:text-white" id="saleDetailsModalTitle">تفاصيل الفاتورة</h2>
+                <button id="closeSaleDetailsModal" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </header>
+            <main id="saleDetailsModalBody" class="p-6 overflow-y-auto"></main>
+        </div>
+    </div>
+
+    <!-- Add Payment Modal -->
+    <div id="addPaymentModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 invisible opacity-0 modal z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-md flex flex-col">
+            <header class="flex justify-between items-center p-4 border-b dark:border-gray-700 flex-shrink-0">
+                <h2 class="text-xl font-bold text-gray-800 dark:text-white" id="addPaymentModalTitle">إضافة دفعة</h2>
+                <button id="closeAddPaymentModal" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </header>
+            <main class="p-6 space-y-4">
+                <div>
+                    <label for="paymentAmount" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">المبلغ المدفوع</label>
+                    <input type="number" id="paymentAmount" name="paymentAmount" placeholder="أدخل المبلغ..." class="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-primary focus:border-primary" required>
+                    <p id="maxAmountInfo" class="text-xs text-gray-500 mt-1"></p>
+                </div>
+                 <div>
+                    <label for="paymentNotes" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">ملاحظات (اختياري)</label>
+                    <textarea id="paymentNotes" name="paymentNotes" rows="3" placeholder="أضف ملاحظاتك هنا..." class="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-primary focus:border-primary"></textarea>
+                </div>
+            </main>
+            <footer class="p-4 border-t dark:border-gray-700 flex-shrink-0 flex justify-end">
+                <button id="savePaymentBtn" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 flex items-center gap-2">
+                    <i data-lucide="save" class="w-4 h-4"></i> حفظ الدفعة
+                </button>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Global JS (Theme, Sidebar, etc.) -->
     <script>
-        // Global state
         let sidebarCollapsed = false;
-
-        // FIX: Simplified toggleSidebar function. It now only manages classes.
         function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('main-content');
-            
-            sidebarCollapsed = !sidebarCollapsed;
-            
-            if (sidebarCollapsed) {
-                // Collapse
-                sidebar.classList.remove('sidebar-expanded');
-                sidebar.classList.add('sidebar-collapsed');
-                mainContent.classList.remove('main-content-expanded');
-                mainContent.classList.add('main-content-collapsed');
-            } else {
-                // Expand
-                sidebar.classList.remove('sidebar-collapsed');
-                sidebar.classList.add('sidebar-expanded');
-                mainContent.classList.remove('main-content-collapsed');
-                mainContent.classList.add('main-content-expanded');
-            }
+            const t = document.getElementById("sidebar"), e = document.getElementById("main-content"), i = document.getElementById("toggle-icon");
+            (sidebarCollapsed = !sidebarCollapsed) ?
+                (t.classList.remove("sidebar-expanded"), t.classList.add("sidebar-collapsed"), e.classList.remove("main-content-expanded"), e.classList.add("main-content-collapsed"), i && (i.innerHTML = '<i data-lucide="panel-left-open"></i>')) :
+                (t.classList.remove("sidebar-collapsed"), t.classList.add("sidebar-expanded"), e.classList.remove("main-content-collapsed"), e.classList.add("main-content-expanded"), i && (i.innerHTML = '<i data-lucide="panel-left-close"></i>'));
+            lucide.createIcons();
         }
-
-        // FIX: Theme switcher now targets `documentElement` (<html>)
-        function applyTheme(theme) {
-            const htmlEl = document.documentElement;
-            const lightIcon = document.getElementById('theme-icon-light');
-            const darkIcon = document.getElementById('theme-icon-dark');
-            
-            if (theme === 'dark') {
-                htmlEl.classList.add('dark');
-                if(lightIcon) lightIcon.classList.add('hidden');
-                if(darkIcon) darkIcon.classList.remove('hidden');
-            } else {
-                htmlEl.classList.remove('dark');
-                if(lightIcon) lightIcon.classList.remove('hidden');
-                if(darkIcon) darkIcon.classList.add('hidden');
-            }
-        }
-
-        function toggleTheme() {
-            const currentTheme = localStorage.getItem('theme') || 'light';
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            localStorage.setItem('theme', newTheme);
-            applyTheme(newTheme);
-        }
-
-        function handleResize() {
-            // Collapse sidebar on small screens automatically
-            if (window.innerWidth < 768 && !sidebarCollapsed) {
-                toggleSidebar();
-            }
-        }
-
-        // --- INITIALIZATION ---
-        document.addEventListener('DOMContentLoaded', () => {
-            document.documentElement.lang = 'ar';
-            document.documentElement.dir = 'rtl';
-
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            applyTheme(savedTheme);
-            
-            handleResize();
-
-            const currentPage = 'clients.html';
-            const navLinks = document.querySelectorAll('.nav-item');
-            navLinks.forEach(link => {
-                if (link.getAttribute('href') === currentPage) {
-                    link.classList.add('active');
-                }
+        function handleResize() { if (window.innerWidth < 768 && !sidebarCollapsed) toggleSidebar(); }
+        document.addEventListener("DOMContentLoaded", () => {
+            document.documentElement.lang = "ar"; document.documentElement.dir = "rtl";
+            let savedTheme = localStorage.getItem("theme") || "light";
+            if (savedTheme === "dark") document.documentElement.classList.add("dark");
+            document.getElementById("toggleTheme").innerHTML = savedTheme === 'dark' ? '<i data-lucide="sun" class="w-4 h-4"></i>' : '<i data-lucide="moon" class="w-4 h-4"></i>';
+            document.getElementById("toggle-sidebar-btn").addEventListener("click", toggleSidebar);
+            const currentPage = "clients.html";
+            document.querySelectorAll(".nav-item").forEach(link => {
+                if (link.getAttribute("href") === currentPage) link.classList.add("active");
             });
+            document.body.style.visibility = "visible"; document.body.style.opacity = "1";
+            lucide.createIcons();
         });
-
-        window.addEventListener('resize', handleResize);
+        document.getElementById("toggleTheme").addEventListener("click", () => {
+            const isDark = document.documentElement.classList.toggle("dark");
+            const newTheme = isDark ? "dark" : "light";
+            localStorage.setItem("theme", newTheme);
+            document.getElementById("toggleTheme").innerHTML = isDark ? '<i data-lucide="sun" class="w-4 h-4"></i>' : '<i data-lucide="moon" class="w-4 h-4"></i>';
+            lucide.createIcons();
+        });
+        window.addEventListener("resize", handleResize);
     </script>
     <script type="module" src="js/clients.js"></script>
 </body>

@@ -84,3 +84,7 @@ feat(service): add printer_api.py and setup as Windows service
   4. Set Startup directory to the exe folder
   5. Start the service: net start PrinterService
 - Ensured the executable runs headless without console window
+
+-----
+
+feat: add payment and order management system to customer interface

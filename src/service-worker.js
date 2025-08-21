@@ -18,7 +18,7 @@ const urlsToCache = [
   '/js/add-product.js',
   '/js/add-sale.js',
   '/js/auth.js',
-  'js/backup.js',
+  '/js/backup.js',
   '/js/clientManager.js',
   '/js/clients.js',
   '/js/dashboard.js',
@@ -58,7 +58,7 @@ const NETWORK_ONLY_DOMAINS = [
   'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
   'https://cdn.tailwindcss.com',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
-  'http://127.0.0.1:3000'
+  'http://127.0.0.1'
 ];
 
 self.addEventListener('install', event => {
