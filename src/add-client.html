@@ -1,253 +1,265 @@
 <!DOCTYPE html>
+<!-- The `dir` and `lang` attributes will now be set by JavaScript on load -->
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إضافة طلب بيع</title>
-    <link rel="manifest" href="/manifest.json">
-    <script src="js/script.js"></script>
+    <title>مدير الأعمال - إضافة عميل</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- SQL.js -->
     <script src="/libs/sql.js/sql-wasm.js"></script>
-    <script src="/libs/lucide/lucide.min.js"></script>
     <script>
-        tailwind.config = { darkMode: 'class', theme: { extend: { colors: { primary: '#1E3A8A', success: '#10B981', warning: '#F59E0B', danger: '#EF4444' }, fontFamily: { 'inter': ['Inter', 'Noto Sans Arabic', 'sans-serif'] } } } }
+        // Theme Configuration from theme.html
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1E3A8A', // Blue
+                        secondary: '#F3F4F6', // Light Gray
+                        success: '#10B981', // Green
+                        warning: '#F59E0B', // Orange
+                        danger: '#EF4444',   // Red
+                    },
+                    fontFamily: {
+                        'inter': ['Inter', 'Noto Sans Arabic', 'sans-serif'],
+                    }
+                }
+            }
+        }
     </script>
     <style>
+        /* Custom styles from theme.html */
         body { font-family: 'Inter', 'Noto Sans Arabic', 'sans-serif'; }
-        .transition-all { transition: all 0.3s ease; }
-        .sidebar-expanded { width: 16rem; }
         .sidebar-collapsed { width: 4rem; }
-        .sidebar-collapsed .nav-text, .sidebar-collapsed #logo-text { opacity: 0; visibility: hidden; transition: opacity 0.1s; }
-        .main-content-expanded { margin-right: 16rem; }
-        .main-content-collapsed { margin-right: 4rem; }
-        [dir="ltr"] .main-content-expanded { margin-left: 16rem; margin-right: 0; }
-        [dir="ltr"] .main-content-collapsed { margin-left: 4rem; margin-right: 0; }
-        .nav-item.active { background-color: #1E3A8A; color: white; }
-        .dark .nav-item.active { background-color: #1E3A8A; }
-        .nav-item.active svg { color: white; }
-        body { visibility: hidden; opacity: 0; transition: opacity 0.4s ease-in-out; }
+        .sidebar-expanded { width: 16rem; }
+        .transition-all { transition: all 0.3s ease; }
+        .hover-scale:hover { transform: scale(1.02); }
+        /* More explicit dark mode styles */
+        .dark .bg-white { background-color: #1f2937; }
+        .dark .bg-gray-50 { background-color: #111827; }
+        .dark .text-gray-900 { color: #f9fafb; }
+        .dark .text-gray-800 { color: #e5e7eb; }
+        .dark .text-gray-700 { color: #d1d5db; }
+        .dark .text-gray-600 { color: #9ca3af; }
+        .dark .border-gray-200 { border-color: #374151; }
+        .dark .shadow, .dark .shadow-lg, .dark .shadow-sm { box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1); }
+        .dark .hover\:bg-gray-100:hover { background-color: #374151; }
+        .dark .hover\:bg-gray-200:hover { background-color: #4b5563; }
+        .dark .bg-gray-100 { background-color: #374151; }
+        .dark .bg-gray-200 { background-color: #4b5563; } /* FIX: Added rule for gray-200 */
+        .dark input, .dark select, .dark textarea { background-color: #374151; border-color: #4b5563; color: #f9fafb; }
+        .dark ::-webkit-calendar-picker-indicator { filter: invert(1); }
+
+        /* Style for the active nav link */
+        .nav-item.active {
+            background-color: #1E3A8A; /* primary color */
+            color: white;
+        }
+        .dark .nav-item.active {
+             background-color: #1E3A8A; /* primary color remains the same in dark mode */
+        }
+        .nav-item.active svg {
+            color: white;
+        }
+        .dark .nav-item:not(.active) {
+            color: #d1d5db; /* text-gray-300 */
+        }
+        .dark .nav-item:not(.active):hover {
+            background-color: #374151;
+        }
+        .dark .nav-item:not(.active) svg {
+            color: #d1d5db;
+        }
     </style>
-    <script src="js/loading_theme.js"></script>
 </head>
-<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300">
-    <div id="sidebar" class="fixed right-0 top-0 h-full bg-white dark:bg-gray-800 shadow-lg transition-all sidebar-expanded z-30 border-l border-gray-200 dark:border-gray-700">
-        <div class="p-4 border-b border-gray-200 dark:border-gray-700"><div class="flex items-center space-x-3 overflow-hidden"><div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0"><span class="text-white font-bold text-sm">BM</span></div><span id="logo-text" class="font-bold text-lg text-gray-900 dark:text-white transition-opacity">مدير الأعمال</span></div></div>
+<body class="bg-gray-50 text-gray-900 transition-all">
+    <!-- Sidebar -->
+    <div id="sidebar" class="fixed right-0 top-0 h-full bg-white shadow-lg transition-all sidebar-expanded z-30 border-l border-gray-200">
+        <div class="p-4 border-b border-gray-200">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-sm">BM</span>
+                </div>
+                <span id="logo-text" class="font-bold text-lg text-gray-900">مدير الأعمال</span>
+            </div>
+        </div>
+        
         <nav class="mt-6">
-            <a href="index.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"/><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z"/></svg>
-                <span class="nav-text mr-3 transition-opacity">لوحة التحكم</span>
+            <a href="index.html" class="nav-item flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 transition-all">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/></svg>
+                <span class="nav-text mr-3">لوحة التحكم</span>
             </a>
-            <a href="products.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zM1 15a1 1 0 011-1h6a1 1 0 110 2H2a1 1 0 01-1-1zm10-2a4 4 0 004 4h1a1 1 0 100-2h-1a2 2 0 01-2-2V9a1 1 0 10-2 0v4z"/></svg>
-                <span class="nav-text mr-3 transition-opacity">المنتجات</span>
+            <a href="products.html" class="nav-item flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 transition-all">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zM1 15a1 1 0 011-1h6a1 1 0 110 2H2a1 1 0 01-1-1zm10-2a4 4 0 004 4h1a1 1 0 100-2h-1a2 2 0 01-2-2V9a1 1 0 10-2 0v4z"/></svg>
+                <span class="nav-text mr-3">المنتجات</span>
             </a>
-            <a href="clients.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
-                <span class="nav-text mr-3 transition-opacity">الزبائن</span>
+            <a href="clients.html" class="nav-item flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 transition-all">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+                <span class="nav-text mr-3">العملاء</span>
             </a>
-            <a href="sales.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/></svg>
-                <span class="nav-text mr-3 transition-opacity">المبيعات</span>
+            <a href="sales.html" class="nav-item flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 transition-all">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/></svg>
+                <span class="nav-text mr-3">المبيعات</span>
             </a>
-            <a href="payments.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zM14 6a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h8zM6 10a2 2 0 012-2 2 2 0 012 2 2 2 0 01-2 2 2 2 0 01-2-2z"/></svg>
-                <span class="nav-text mr-3 transition-opacity">المدفوعات</span>
+            <a href="employees.html" class="nav-item flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 transition-all">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z"/></svg>
+                <span class="nav-text mr-3">الموظفون</span>
             </a>
-            <a href="settings.html" class="nav-item flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"/></svg>
-                <span class="nav-text mr-3 transition-opacity">الإعدادات</span>
+            <a href="payments.html" class="nav-item flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 transition-all">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zM14 6a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h8zM6 10a2 2 0 012-2 2 2 0 012 2 2 2 0 01-2 2 2 2 0 01-2-2z"/></svg>
+                <span class="nav-text mr-3">المدفوعات</span>
+            </a>
+            <a href="salaries.html" class="nav-item flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 transition-all">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"/><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z"/></svg>
+                <span class="nav-text mr-3">الرواتب</span>
+            </a>
+            <a href="expenses.html" class="nav-item flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 transition-all">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"/></svg>
+                <span class="nav-text mr-3">المصروفات</span>
+            </a>
+            <a href="settings.html" class="nav-item flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 transition-all">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"/></svg>
+                <span class="nav-text mr-3">الإعدادات</span>
             </a>
         </nav>
     </div>
 
-    <div id="main-content" class="flex flex-col h-screen transition-all main-content-expanded">
-        <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between flex-shrink-0">
+    <!-- Main Content -->
+    <div id="main-content" class="flex flex-col h-screen transition-all" style="margin-right: 16rem;">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-gray-200 p-4 flex items-center justify-between flex-shrink-0">
             <div class="flex items-center space-x-4">
-                <button onclick="toggleSidebar()" class="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    <span id="toggle-icon"><i data-lucide="panel-left-close"></i></span>
+                <button onclick="toggleSidebar()" class="p-2 rounded-lg hover:bg-gray-100 transition-all">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"/></svg>
                 </button>
-                <h1 id="main-heading" class="text-2xl font-semibold text-gray-900 dark:text-white">إضافة طلب بيع 🛒</h1>
+                <h1 id="page-title" class="text-2xl font-semibold text-gray-900">إضافة / تعديل عميل</h1>
             </div>
+            
             <div class="flex items-center space-x-4">
-                <button onclick="toggleTheme()" class="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    <i data-lucide="sun" id="theme-icon-light"></i><i data-lucide="moon" id="theme-icon-dark" class="hidden"></i>
+                <button onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-gray-100 transition-all">
+                    <svg id="theme-icon-light" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"/></svg>
+                    <svg id="theme-icon-dark" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
                 </button>
-                <div class="flex items-center space-x-2"><div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center"><span class="text-white text-sm font-medium">A</span></div><span class="text-sm font-medium text-gray-700 dark:text-gray-300">مستخدم إداري</span></div>
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                        <span class="text-white text-sm font-medium">A</span>
+                    </div>
+                    <span class="text-sm font-medium text-gray-700">مستخدم إداري</span>
+                </div>
             </div>
         </header>
-        
-        <main class="flex-1 p-6 overflow-auto">
-            <div class="max-w-7xl mx-auto space-y-6">
-                <!-- Sale Form -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                    <h2 class="text-xl font-bold mb-4 text-gray-800 dark:text-white">تفاصيل الطلب</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div>
-                            <label for="clientSearch" class="block text-gray-600 dark:text-gray-300 mb-2">البحث عن العميل</label>
-                            <input type="text" id="clientSearch" placeholder="ابحث بالاسم أو رقم الهاتف..." class="p-2 border border-gray-300 rounded-lg w-full text-right dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                        </div>
-                        <div>
-                            <label for="clientSelect" class="block text-gray-600 dark:text-gray-300 mb-2">اختيار العميل</label>
-                            <select id="clientSelect" class="p-2 border border-gray-300 rounded-lg w-full bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                <option value="">بدون عميل (بيع نقدي)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="saleDate" class="block text-gray-600 dark:text-gray-300 mb-2">تاريخ البيع</label>
-                            <input type="date" id="saleDate" class="p-2 border border-gray-300 rounded-lg w-full text-right dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]">
-                        </div>
-                        <div>
-                            <label for="isCredit" class="block text-gray-600 dark:text-gray-300 mb-2">نوع البيع</label>
-                            <select id="isCredit" class="p-2 border border-gray-300 rounded-lg w-full bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                <option value="0">نقدي</option>
-                                <option value="1">كريدي</option>
-                            </select>
-                        </div>
+
+        <!-- Page Content -->
+        <main class="flex-1 p-6 bg-gray-50 overflow-y-auto">
+             <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 max-w-4xl mx-auto">
+                <h2 class="text-lg font-semibold mb-6 text-gray-800 border-b border-gray-200 pb-4">بيانات العميل</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="clientName" class="block text-sm font-medium text-gray-700 mb-2">اسم العميل <span class="text-danger">*</span></label>
+                        <input type="text" id="clientName" placeholder="أدخل اسم العميل" class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div>
+                        <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">رقم الهاتف</label>
+                        <input type="tel" id="phone" placeholder="أدخل رقم الهاتف" class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="address" class="block text-sm font-medium text-gray-700 mb-2">العنوان</label>
+                        <input type="text" id="address" placeholder="أدخل العنوان" class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                     <div>
+                        <label for="isRegular" class="block text-sm font-medium text-gray-700 mb-2">عميل منتظم</label>
+                        <select id="isRegular" class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                            <option value="1">نعم</option>
+                            <option value="0" selected>لا</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                         <label for="notes" class="block text-sm font-medium text-gray-700 mb-2">ملاحظات</label>
+                         <textarea id="notes" rows="3" placeholder="أدخل أي ملاحظات..." class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
                     </div>
                 </div>
-
-                <!-- Sale Items -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                    <h2 class="text-xl font-bold mb-4 text-gray-800 dark:text-white">إضافة المنتجات</h2>
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4 items-end">
-                        <div class="lg:col-span-3">
-                            <label for="productSearch" class="block text-gray-600 dark:text-gray-300 mb-2">البحث عن المنتج</label>
-                            <input type="text" id="productSearch" placeholder="ابحث عن المنتجات..." class="p-2 border border-gray-300 rounded-lg w-full text-right dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                        </div>
-                        <div class="lg:col-span-3">
-                            <label for="productSelect" class="block text-gray-600 dark:text-gray-300 mb-2">اختيار المنتج</label>
-                            <select id="productSelect" class="p-2 border border-gray-300 rounded-lg w-full bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                <option value="">اختر منتجًا</option>
-                            </select>
-                        </div>
-                        <div class="lg:col-span-1">
-                            <label for="quantity" class="block text-gray-600 dark:text-gray-300 mb-2">الكمية</label>
-                            <input type="number" id="quantity" min="1" value="1" class="p-2 border border-gray-300 rounded-lg w-full text-right dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        </div>
-                        <div class="lg:col-span-1">
-                            <label for="itemDiscount" class="block text-gray-600 dark:text-gray-300 mb-2">خصم العنصر</label>
-                            <input type="number" id="itemDiscount" min="0" step="0.01" value="0" class="p-2 border border-gray-300 rounded-lg w-full text-right dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        </div>
-                        <div class="lg:col-span-2">
-                            <label for="deliveryPrice" class="block text-gray-600 dark:text-gray-300 mb-2">تكلفة التوصيل</label>
-                            <input type="number" id="deliveryPrice" min="0" step="0.01" value="0" class="p-2 border border-gray-300 rounded-lg w-full text-right dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        </div>
-                        <div class="lg:col-span-2">
-                            <label for="laborCost" class="block text-gray-600 dark:text-gray-300 mb-2">تكلفة العمالة</label>
-                            <input type="number" id="laborCost" min="0" step="0.01" value="0" class="p-2 border border-gray-300 rounded-lg w-full text-right dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        </div>
-                        <input type="number" id="unitPrice" hidden>
-                        <div class="lg:col-span-2"><button id="addItem" class="w-full bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"><i data-lucide="plus-circle" class="w-4 h-4"></i><span>إضافة</span></button></div>
-                    </div>
-                    <div class="mt-6 overflow-x-auto">
-                        <table class="w-full text-sm text-gray-600 dark:text-gray-400">
-                            <thead class="text-sm text-gray-700 dark:text-gray-300 uppercase bg-gray-100 dark:bg-gray-700">
-                                <tr>
-                                    <th class="p-3 text-right">المنتج</th>
-                                    <th class="p-3 text-left">الكمية</th>
-                                    <th class="p-3 text-left">سعر الوحدة</th>
-                                    <th class="p-3 text-left">الخصم</th>
-                                    <th class="p-3 text-left">تكلفة التوصيل</th>
-                                    <th class="p-3 text-left">تكلفة العمالة</th>
-                                    <th class="p-3 text-left">الإجمالي</th>
-                                    <th class="p-3 text-center">الإجراءات</th>
-                                </tr>
-                            </thead>
-                            <tbody id="saleItemsTableBody" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Summary and Submit -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                    <h2 class="text-xl font-bold mb-4 text-gray-800 dark:text-white">ملخص الطلب</h2>
-                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4 items-end">
-                        <div class="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                            <label class="block text-sm text-gray-600 dark:text-gray-400">المجموع الفرعي</label>
-                            <p id="subtotal" class="text-lg font-bold text-gray-800 dark:text-white">0.00</p>
-                        </div>
-                        <div class="text-center p-3 bg-yellow-100 dark:bg-yellow-900/50 rounded-lg">
-                            <label class="block text-sm text-yellow-600 dark:text-yellow-400">إجمالي الخصم</label>
-                            <p id="totalDiscount" class="text-lg font-bold text-warning dark:text-yellow-400">0.00</p>
-                        </div>
-                        <div class="text-center p-3 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
-                            <label class="block text-sm text-blue-600 dark:text-blue-300">الإجمالي النهائي</label>
-                            <p id="total" class="text-xl font-bold text-primary dark:text-blue-300">0.00</p>
-                        </div>
-                        <div class="text-center p-3 bg-red-100 dark:bg-red-900/50 rounded-lg">
-                            <label class="block text-sm text-red-600 dark:text-red-400">المبلغ المتبقي</label>
-                            <p id="remaining" class="text-lg font-bold text-danger dark:text-red-400">0.00</p>
-                        </div>
-                    </div>
-                    <div class="flex gap-4 mb-4">
-                        <div class="flex-1">
-                            <label for="saleDiscount" class="block text-gray-600 dark:text-gray-300 mb-2">الخصم على الإجمالي</label>
-                            <input type="number" id="saleDiscount" min="0" step="0.01" value="0" class="p-2 border border-gray-300 rounded-lg w-full text-right dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        </div>
-                        <div class="flex-1">
-                            <label for="paidAmount" class="block text-gray-600 dark:text-gray-300 mb-2">المبلغ المدفوع</label>
-                            <input type="number" id="paidAmount" min="0" step="0.01" value="0" class="p-2 border border-gray-300 rounded-lg w-full text-right dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        </div>
-                    </div>
-                    <div class="flex gap-4 mt-4">
-                        <button id="submitSale" class="bg-success text-white px-6 py-2 rounded-lg hover:bg-success/90 transition-colors flex items-center gap-2"><i data-lucide="check-circle" class="w-5 h-5"></i><span>تأكيد البيع</span></button>
-                        <button id="printReceipt" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"><i data-lucide="printer" class="w-5 h-5"></i><span>طباعة الإيصال</span></button>
-                        <a href="sales.html" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-400 transition-colors">إلغاء</a>
-                    </div>
+                <div class="mt-8 pt-4 border-t border-gray-200 flex gap-4">
+                    <button id="addClient" class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">حفظ العميل</button>
+                    <!-- FIX: The cancel button now has theme-aware classes -->
+                    <a href="clients.html" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors">إلغاء</a>
                 </div>
             </div>
         </main>
     </div>
+
+    <!-- JavaScript -->
     <script>
+        // Global state and functions...
         let sidebarCollapsed = false;
-        function toggleSidebar() { 
-            const t = document.getElementById("sidebar"), 
-                  e = document.getElementById("main-content"), 
-                  i = document.getElementById("toggle-icon");
-            (sidebarCollapsed = !sidebarCollapsed) ? 
-                (t.classList.remove("sidebar-expanded"), t.classList.add("sidebar-collapsed"), 
-                 e.classList.remove("main-content-expanded"), e.classList.add("main-content-collapsed"), 
-                 i && (i.innerHTML = '<i data-lucide="panel-left-open"></i>')) :
-                (t.classList.remove("sidebar-collapsed"), t.classList.add("sidebar-expanded"), 
-                 e.classList.remove("main-content-collapsed"), e.classList.add("main-content-expanded"), 
-                 i && (i.innerHTML = '<i data-lucide="panel-left-close"></i>'));
-            lucide.createIcons();
+        let isRTL = true;
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('main-content');
+            const logoText = document.getElementById('logo-text');
+            const navTexts = document.querySelectorAll('.nav-text');
+            sidebarCollapsed = !sidebarCollapsed;
+            if (sidebarCollapsed) {
+                sidebar.classList.remove('sidebar-expanded');
+                sidebar.classList.add('sidebar-collapsed');
+                mainContent.style.marginRight = '4rem';
+                logoText.style.display = 'none';
+                navTexts.forEach(text => text.style.display = 'none');
+            } else {
+                sidebar.classList.remove('sidebar-collapsed');
+                sidebar.classList.add('sidebar-expanded');
+                mainContent.style.marginRight = '16rem';
+                logoText.style.display = 'block';
+                navTexts.forEach(text => text.style.display = 'block');
+            }
         }
-        function applyTheme(t) {
-            const e = document.documentElement, 
-                  i = document.getElementById("theme-icon-light"), 
-                  d = document.getElementById("theme-icon-dark");
-            "dark" === t ? 
-                (e.classList.add("dark"), i && i.classList.add("hidden"), d && d.classList.remove("hidden")) :
-                (e.classList.remove("dark"), i && i.classList.remove("hidden"), d && d.classList.add("hidden"));
+
+        function applyTheme(theme) {
+            const body = document.body;
+            const lightIcon = document.getElementById('theme-icon-light');
+            const darkIcon = document.getElementById('theme-icon-dark');
+            if (theme === 'dark') {
+                body.classList.add('dark');
+                if (lightIcon) lightIcon.classList.add('hidden');
+                if (darkIcon) darkIcon.classList.remove('hidden');
+            } else {
+                body.classList.remove('dark');
+                if (lightIcon) lightIcon.classList.remove('hidden');
+                if (darkIcon) darkIcon.classList.add('hidden');
+            }
         }
+
         function toggleTheme() {
-            const t = "dark" === localStorage.getItem("theme") ? "light" : "dark";
-            localStorage.setItem("theme", t);
-            applyTheme(t);
+            const currentTheme = localStorage.getItem('theme') || 'light';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
         }
-        function handleResize() {
-            window.innerWidth < 768 && !sidebarCollapsed && toggleSidebar();
-        }
-        document.addEventListener("DOMContentLoaded", () => {
-            document.documentElement.lang = "ar";
-            document.documentElement.dir = "rtl";
-            const t = localStorage.getItem("theme") || "light";
-            applyTheme(t);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.documentElement.lang = 'ar';
+            document.documentElement.dir = 'rtl';
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            applyTheme(savedTheme);
             handleResize();
-            const e = "sales.html";
-            document.querySelectorAll(".nav-item").forEach(t => {
-                t.getAttribute("href") === e && t.classList.add("active");
+            const currentPage = 'clients.html';
+            const navLinks = document.querySelectorAll('.nav-item');
+            navLinks.forEach(link => {
+                if (link.getAttribute('href') === currentPage) {
+                    link.classList.add('active');
+                }
             });
-            document.body.style.visibility = "visible";
-            document.body.style.opacity = "1";
-            lucide.createIcons();
         });
-        window.addEventListener("resize", handleResize);
+
+        window.addEventListener('resize', handleResize);
+        function handleResize() {
+            if (window.innerWidth < 768) { if (!sidebarCollapsed) { toggleSidebar(); } }
+        }
     </script>
-    <script type="module" src="js/add-sale.js"></script>
-    <script src="js/print-receipt.js"></script>
+    <script type="module" src="js/add-client.js"></script>
 </body>
 </html>

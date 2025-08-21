@@ -89,3 +89,7 @@ feat(service): add printer_api.py and setup as Windows service
 -----
 
 feat: add payment and order management system to customer interface
+
+-----
+
+fix: correct add-client.html file
