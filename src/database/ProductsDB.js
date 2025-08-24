@@ -223,6 +223,7 @@ class ProductsDB extends Database {
         stmt.free();
         return products;
     }
+    
 }
 
 export default ProductsDB;

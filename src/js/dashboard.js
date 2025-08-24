@@ -106,6 +106,7 @@ async function fetchStats(startDate, endDate) {
 }
 
 async function getComprehensiveStats(startDate, endDate) {
+    console.log('getComprehensiveStats called with:', { startDate, endDate });
     const saleItemsDB = new SaleItemsDB();
     const productsDB = new ProductsDB();
     const clientsDB = new ClientsDB();
@@ -121,12 +122,12 @@ async function getComprehensiveStats(startDate, endDate) {
         // Sales Stats
         let totalRevenue = await saleItemsDB.getTotalRevenue(startDate, endDate);
         const totalDeliveryRevenue = await salesDB.getTotalDeliveryPrice(startDate, endDate);
-        totalRevenue += totalDeliveryRevenue; // Add delivery_price to totalRevenue
+        totalRevenue += totalDeliveryRevenue;
         const topSoldItems = await saleItemsDB.getTopSoldItemsWithDateRange(startDate, endDate, 5);
         const totalItemsSold = await saleItemsDB.getTotalItemsSold(startDate, endDate);
         const revenueTrend = await getRevenueTrend(saleItemsDB, salesDB, startDate, endDate);
 
-        // Calculate Total Purchase Cost of sold items
+        // Calculate Total Purchase Cost
         const db = await saleItemsDB.getDB();
         let query = `SELECT si.product_id, SUM(si.quantity) as total_quantity
                      FROM sale_items si
@@ -167,8 +168,9 @@ async function getComprehensiveStats(startDate, endDate) {
         const clientsWithCredit = await clientsDB.getClientsWithCredit(startDate, endDate);
 
         // Profit Stats
-        const paidCredit = await paymentsDB.getTotalPaymentsAmount(startDate, endDate);
-        const grossProfit = totalRevenue - totalPurchaseCost; // delivery_price is pure profit, already in totalRevenue
+        const paidCredit = await paymentsDB.getTotalPaidCredit(startDate, endDate); // استخدام getTotalPaidCredit
+        console.log('Calculated paidCredit:', paidCredit, 'for range:', { startDate, endDate });
+        const grossProfit = totalRevenue - totalPurchaseCost;
 
         return {
             sales: { totalRevenue, totalItemsSold, topSoldItems, paidCredit },
@@ -220,7 +222,12 @@ async function getRevenueTrend(saleItemsDB, salesDB, startDate, endDate) {
 
 function setTextContent(elementId, value) {
     const element = document.getElementById(elementId);
-    if (element) element.textContent = value;
+    if (element) {
+        console.log(`Setting ${elementId} to:`, value);
+        element.textContent = value;
+    } else {
+        console.error(`Element with ID ${elementId} not found`);
+    }
 }
 
 function setClassName(elementId, condition, classIfTrue, classIfFalse) {
@@ -231,8 +238,11 @@ function setClassName(elementId, condition, classIfTrue, classIfFalse) {
 }
 
 function displayStats(stats) {
+    console.log('displayStats called with stats:', stats);
     // Sales Stats
+    console.log('Updating totalRevenue:', stats.sales.totalRevenue);
     setTextContent('totalRevenue', stats.sales.totalRevenue.toFixed(2));
+    console.log('Updating paidCredit:', stats.sales.paidCredit);
     setTextContent('paidCredit', stats.sales.paidCredit.toFixed(2));
     setTextContent('totalItemsSold', stats.sales.totalItemsSold);
     const topSoldItemsList = document.getElementById('topSoldItems');

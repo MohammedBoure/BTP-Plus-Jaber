@@ -21,7 +21,7 @@ class Database {
                 console.log("إنشاء قاعدة بيانات جديدة...");
                 this.db = new this.SQL.Database();
                 this.createTables();
-                await this._seedInitialData();
+                //await this._seedInitialData();
                 await this.save();
             }
             const productCount = this.db.exec(`SELECT COUNT(*) AS count FROM products`)[0].values[0][0];

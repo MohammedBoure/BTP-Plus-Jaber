@@ -28,22 +28,58 @@ class PaymentsDB extends Database {
     }
 
     async addPayment(payment) {
-        const { client_id, date, amount, notes } = payment;
+        const { client_id, date, amount, notes, sale_ids } = payment;
         const db = await this.getDB();
         db.run('BEGIN TRANSACTION;');
         try {
-            const stmt = db.prepare(`
-                SELECT sale_id, remaining 
-                FROM sales 
-                WHERE client_id = ? AND is_credit = 1 AND remaining > 0 
-                ORDER BY date ASC;
-            `, [client_id]);
-            const sales = [];
-            while (stmt.step()) {
-                sales.push(stmt.getAsObject());
+            // Validate inputs
+            if (!Number.isInteger(client_id) || client_id <= 0) {
+                throw new Error('معرف العميل غير صالح.');
             }
-            stmt.free();
+            if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                throw new Error('صيغة التاريخ غير صالحة. استخدم YYYY-MM-DD.');
+            }
+            if (!Number.isFinite(amount) || amount <= 0) {
+                throw new Error('مبلغ الدفعة غير صالح.');
+            }
 
+            // Retrieve credit sales to apply payment
+            let sales = [];
+            if (sale_ids && Array.isArray(sale_ids) && sale_ids.length > 0) {
+                // If specific sale IDs are provided, fetch only those sales
+                const placeholders = sale_ids.map(() => '?').join(',');
+                const query = `
+                    SELECT sale_id, remaining 
+                    FROM sales 
+                    WHERE client_id = ? AND is_credit = 1 AND remaining > 0 AND sale_id IN (${placeholders})
+                    ORDER BY date ASC;
+                `;
+                const params = [client_id, ...sale_ids];
+                const stmt = db.prepare(query, params);
+                while (stmt.step()) {
+                    sales.push(stmt.getAsObject());
+                }
+                stmt.free();
+            } else {
+                // Fallback to existing logic: fetch all credit sales with remaining balance
+                const stmt = db.prepare(`
+                    SELECT sale_id, remaining 
+                    FROM sales 
+                    WHERE client_id = ? AND is_credit = 1 AND remaining > 0 
+                    ORDER BY date ASC;
+                `, [client_id]);
+                while (stmt.step()) {
+                    sales.push(stmt.getAsObject());
+                }
+                stmt.free();
+            }
+
+            // Validate that sales exist if specific IDs were provided
+            if (sale_ids && sale_ids.length > 0 && sales.length === 0) {
+                throw new Error('لم يتم العثور على مبيعات ائتمانية صالحة للمعرفات المحددة.');
+            }
+
+            // Apply payment to selected or oldest sales
             let remainingAmount = amount;
             for (const sale of sales) {
                 if (remainingAmount <= 0) break;
@@ -56,6 +92,12 @@ class PaymentsDB extends Database {
                 remainingAmount -= amountToApply;
             }
 
+            // Check if any payment amount remains unallocated
+            if (remainingAmount > 0 && sale_ids && sale_ids.length > 0) {
+                console.warn(`PaymentsDB.js: ${remainingAmount} من مبلغ الدفعة لم يتم تطبيقه على المبيعات المحددة.`);
+            }
+
+            // Insert payment record
             const payment_id = Date.now();
             db.run(
                 `INSERT INTO payments (payment_id, client_id, date, amount, notes) 
@@ -65,11 +107,11 @@ class PaymentsDB extends Database {
 
             db.run('COMMIT;');
             await this.save();
-            return payment_id; // Return the generated payment_id
+            return payment_id;
         } catch (error) {
             db.run('ROLLBACK;');
             console.error('Error adding payment:', error);
-            throw new Error(`Failed to add payment: ${error.message}`);
+            throw new Error(`فشل في إضافة الدفعة: ${error.message}`);
         }
     }
 
@@ -161,17 +203,16 @@ class PaymentsDB extends Database {
         } catch (error) {
             db.run('ROLLBACK;');
             console.error('Error updating payment:', error);
-            throw new Error(`Failed to update payment: ${error.message}`);
+            throw new Error(`فشل في تحديث الدفعة: ${error.message}`);
         }
     }
 
     async deletePayment(payment_id) {
         console.log('PaymentsDB.js: deletePayment called with payment_id:', payment_id);
-        // Ensure payment_id is a number
         const parsedPaymentId = Number(payment_id);
         if (!Number.isFinite(parsedPaymentId)) {
             console.error('PaymentsDB.js: Invalid payment_id:', payment_id);
-            throw new Error('Invalid payment_id provided.');
+            throw new Error('معرف الدفعة غير صالح.');
         }
 
         const db = await this.getDB();
@@ -179,7 +220,6 @@ class PaymentsDB extends Database {
         console.debug('PaymentsDB.js: Transaction started for deleting payment:', parsedPaymentId);
 
         try {
-            // Step 1: Retrieve the payment details
             const paymentStmt = db.prepare(
                 `SELECT amount, client_id 
                 FROM payments 
@@ -194,14 +234,13 @@ class PaymentsDB extends Database {
 
             if (!payment) {
                 console.error('PaymentsDB.js: Payment not found for payment_id:', parsedPaymentId);
-                throw new Error(`Payment with ID ${parsedPaymentId} not found.`);
+                throw new Error(`الدفعة بمعرف ${parsedPaymentId} غير موجودة.`);
             }
 
             console.debug('PaymentsDB.js: Payment to delete:', payment);
             const { amount, client_id } = payment;
             let remainingAmount = amount;
 
-            // Step 2: Retrieve credit sales for the client to reverse payment effects
             const salesStmt = db.prepare(
                 `SELECT sale_id, paid, remaining 
                 FROM sales 
@@ -216,7 +255,6 @@ class PaymentsDB extends Database {
             salesStmt.free();
             console.debug('PaymentsDB.js: Credit sales to revert:', sales);
 
-            // Step 3: Reverse the payment effect on credit sales
             for (const sale of sales) {
                 if (remainingAmount <= 0) break;
                 const amountToRevert = Math.min(remainingAmount, sale.paid);
@@ -230,7 +268,6 @@ class PaymentsDB extends Database {
                 remainingAmount -= amountToRevert;
             }
 
-            // Step 4: Delete the payment record
             console.debug('PaymentsDB.js: Deleting payment record for payment_id:', parsedPaymentId);
             const deleteStmt = db.prepare(`DELETE FROM payments WHERE payment_id = ?;`, [parsedPaymentId]);
             const changes = deleteStmt.run();
@@ -238,21 +275,19 @@ class PaymentsDB extends Database {
 
             if (changes === 0) {
                 console.error('PaymentsDB.js: No payment deleted, possible issue with payment_id:', parsedPaymentId);
-                throw new Error(`No payment deleted for payment_id ${parsedPaymentId}.`);
+                throw new Error(`لم يتم حذف الدفعة بمعرف ${parsedPaymentId}.`);
             }
 
-            // Step 5: Commit the transaction
             db.run('COMMIT;');
             console.log('PaymentsDB.js: Successfully deleted payment and reversed effects for payment_id:', parsedPaymentId);
 
-            // Step 6: Save the database
             await this.save();
             console.debug('PaymentsDB.js: Database saved after deleting payment');
         } catch (error) {
             console.error('PaymentsDB.js: Error during deletePayment transaction:', error.message, error.stack);
             db.run('ROLLBACK;');
             console.debug('PaymentsDB.js: Transaction rolled back for deletePayment');
-            throw new Error(`Failed to delete payment ${parsedPaymentId}: ${error.message}`);
+            throw new Error(`فشل في حذف الدفعة ${parsedPaymentId}: ${error.message}`);
         }
     }
 
@@ -292,59 +327,56 @@ class PaymentsDB extends Database {
     }
 
     async getTotalPaymentsAmount(startDate = '', endDate = '') {
+        console.log('PaymentsDB.js: getTotalPaymentsAmount called with:', { startDate, endDate });
         const db = await this.getDB();
         let query = `SELECT SUM(amount) AS total_amount FROM payments`;
         const params = [];
         if (startDate && endDate) {
-            query += ` WHERE date BETWEEN ? AND ?`;
+            query += ` WHERE DATE(date) BETWEEN ? AND ?`;
             params.push(startDate, endDate);
         } else if (startDate) {
-            query += ` WHERE date >= ?`;
+            query += ` WHERE DATE(date) >= ?`;
             params.push(startDate);
         } else if (endDate) {
-            query += ` WHERE date <= ?`;
+            query += ` WHERE DATE(date) <= ?`;
             params.push(endDate);
         }
+        console.log('PaymentsDB.js: Executing query:', query, 'with params:', params);
         const result = db.exec(query, params);
-        return result[0].values[0][0] || 0;
+        const total = result[0].values[0][0] || 0;
+        console.log('PaymentsDB.js: getTotalPaymentsAmount result:', total);
+        return total;
     }
 
-    /**
-     * Calculates the total amount of payments made toward credit sales within an optional date range.
-     * @param {string} [startDate] - Start date in YYYY-MM-DD format (optional).
-     * @param {string} [endDate] - End date in YYYY-MM-DD format (optional).
-     * @returns {Promise<number>} Total amount of payments.
-     * @throws {Error} If date format is invalid or database error occurs.
-     */
     async getTotalPaidCredit(startDate = '', endDate = '') {
         console.log('PaymentsDB.js: getTotalPaidCredit called with:', { startDate, endDate });
         if ((startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) ||
             (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate))) {
             console.error('PaymentsDB.js: Invalid date format:', { startDate, endDate });
-            throw new Error('Invalid date format. Use YYYY-MM-DD.');
+            throw new Error('صيغة التاريخ غير صالحة. استخدم YYYY-MM-DD.');
         }
         try {
             const db = await this.getDB();
             let query = `SELECT SUM(amount) AS total_amount FROM payments`;
             const params = [];
             if (startDate && endDate) {
-                query += ` WHERE date BETWEEN ? AND ?`;
+                query += ` WHERE DATE(date) BETWEEN ? AND ?`;
                 params.push(startDate, endDate);
             } else if (startDate) {
-                query += ` WHERE date >= ?`;
+                query += ` WHERE DATE(date) >= ?`;
                 params.push(startDate);
             } else if (endDate) {
-                query += ` WHERE date <= ?`;
+                query += ` WHERE DATE(date) <= ?`;
                 params.push(endDate);
             }
-            console.debug('PaymentsDB.js: Executing query:', query, 'with params:', params);
+            console.log('PaymentsDB.js: Executing query:', query, 'with params:', params);
             const result = db.exec(query, params);
             const total = result[0].values[0][0] || 0;
             console.log('PaymentsDB.js: getTotalPaidCredit result:', total);
             return total;
         } catch (error) {
             console.error('PaymentsDB.js: Error in getTotalPaidCredit:', error.message, error.stack);
-            throw new Error(`Failed to calculate total paid credit: ${error.message}`);
+            throw new Error(`فشل في حساب إجمالي الدفعات الائتمانية: ${error.message}`);
         }
     }
 }

@@ -95,20 +95,36 @@ class ClientsDB extends Database {
         return clients;
     }
 
-    async getClientPurchaseHistory(client_id) {
-        const db = await this.getDB();
-        const stmt = db.prepare(`
-            SELECT s.sale_id, s.date, s.total, s.paid, s.remaining, s.is_credit
-            FROM sales s
-            WHERE s.client_id = ?
-            ORDER BY s.date DESC;
-        `, [client_id]);
-        const sales = [];
-        while (stmt.step()) {
-            sales.push(stmt.getAsObject());
+    async getClientPurchaseHistory(clientId) {
+        console.log('ClientsDB.js: getClientPurchaseHistory called with client_id:', clientId);
+        if (!Number.isInteger(clientId) || clientId <= 0) {
+            console.error('ClientsDB.js: Invalid client_id:', clientId);
+            throw new Error('Invalid client_id provided.');
         }
-        stmt.free();
-        return sales;
+        try {
+            const db = await this.getDB();
+            console.debug('ClientsDB.js: Database connection established for getClientPurchaseHistory');
+            const query = `
+                SELECT 
+                    sale_id, date, subtotal, sale_discount_amount, delivery_price, labor_cost, total, paid, remaining, is_credit
+                FROM sales 
+                WHERE client_id = ? 
+                ORDER BY date DESC;
+            `;
+            const params = [clientId];
+            console.debug('ClientsDB.js: Executing query:', query, 'with params:', params);
+            const stmt = db.prepare(query, params);
+            const history = [];
+            while (stmt.step()) {
+                history.push(stmt.getAsObject());
+            }
+            stmt.free();
+            console.log('ClientsDB.js: Retrieved purchase history with', history.length, 'sales');
+            return history;
+        } catch (error) {
+            console.error('ClientsDB.js: Error fetching client purchase history:', error.message, error.stack);
+            throw new Error(`Failed to fetch purchase history for client ${clientId}: ${error.message}`);
+        }
     }
 
     async getClientPayments(client_id) {

@@ -93,3 +93,7 @@ feat: add payment and order management system to customer interface
 -----
 
 fix: correct add-client.html file
+
+-----
+
+feat(billing): add comprehensive receipt system for debt invoices and enable direct customer payments with sale selection
